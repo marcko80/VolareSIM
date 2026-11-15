@@ -64,6 +64,7 @@ npm run app          # compila e avvia l'app Electron
 npm run dev          # server Vite (http://localhost:5173) per lo sviluppo
 npm run dist         # crea installer e versione portable in release/
 npm run fetch-data   # riscarica i dati del terreno reale (serve internet)
+node tools/fetch-ortho.mjs   # riscarica le ortofoto a 50 cm attorno ai due aeroporti
 ```
 
 ## Come si vola
@@ -116,7 +117,7 @@ Misurato su un portatile ibrido a 1920 × 1080 con `node tools/perf.mjs` (NVIDIA
 | **Finestrini e livrea** (`src/livery.js`) | Un set di texture 2048 × 1024 è calcolato una volta da funzioni di distanza con segno nello spazio della fusoliera: vernice, alfa dei finestrini anti-alias, alfa del vetro, guarnizioni, linee dei pannelli e marche. La stessa maschera buca la pelle esterna e un guscio interno rientrante: la cabina è un volume chiuso in cui si vede dentro e fuori. |
 | **Cockpit** (`src/cockpit.js`) | Cruscotto estruso, texture del pannello, sette quadranti su canvas ridisegnati solo quando il valore cambia, ghiere cromate e vetrini, due volantini che ripetono i comandi, manetta, sedili, rivestimenti e una luce d'abitacolo. |
 | **Cielo e luce** (`src/sky.js`) | Gradiente atmosferico, disco solare HDR e strato di nubi in un solo fragment shader; lo stesso shader è cotto in una mappa ambiente PMREM per i riflessi. Le ombre del sole sono agganciate ai texel della shadow map per evitare lo sfarfallio. |
-| **Dati reali** (`tools/fetch-data.mjs`, `src/data.js`) | Uno script, da eseguire una volta, scarica gli AWS Terrain Tiles (quote), il Sentinel-2 cloudless 2016 di EOX (immagini) e gli elementi di OpenStreetMap via Overpass, li riproietta su una griglia metrica locale centrata sulla pista di LIAP e scrive `public/data/` (griglia di quote 2048², immagine 3072² affilata, classi di copertura 1536² e un JSON OSM). Il gioco li legge all'avvio. |
+| **Dati reali** (`tools/fetch-data.mjs`, `src/data.js`) | Uno script, da eseguire una volta, scarica gli AWS Terrain Tiles (quote), il Sentinel-2 cloudless 2016 di EOX (immagini) e gli elementi di OpenStreetMap via Overpass, li riproietta su una griglia metrica locale centrata sulla pista di LIAP e scrive `public/data/` (griglia di quote 2048², immagine 3072² affilata, classi di copertura 1536² e un JSON OSM). Le foto ad alta risoluzione vengono da `tools/fetch-ortho.mjs` (ortofoto AGEA 2012 a 1 m/px attorno a LIAP, 2 m/px su 8 km e attorno all'aviosuperficie), fuse nello shader del terreno sopra la base satellitare. Il gioco li legge all'avvio. |
 | **Terreno** (`src/world.js`) | 24 × 24 chunk da 1,6 km su coda a budget (niente scatti in volo), tre LOD con gonne. Il fragment shader prende il colore dal satellite, aggiunge grana di luminanza dalle texture fotografiche CC0, una texture di rumore tileable a 3 scale e normal map da vicino, poi sovrappone strade, acqua, roccia sulle pendenze e neve sopra i 2.300 m. Gli alberi sono istanziati per chunk: modelli 3D vicino, sagome (impostori) più lontano. |
 | **Post-processing** (`src/postfx.js`) | EffectComposer: target HDR half-float → bloom → uscita ACES → SMAA oppure MSAA + grading. |
 | **Audio / input / i18n** | Sintesi WebAudio (`src/audio.js`), tastiera + Gamepad API (`src/controls.js`), traduzioni IT/EN basate su dizionario (`src/i18n.js`). |
