@@ -2,7 +2,7 @@
 
 # ✈️ VolareSIM
 
-**Un simulatore di volo civile realizzato con [Three.js](https://threejs.org/) ed Electron** — pilota un Cessna 172 modellato proceduralmente, con un vero cockpit 3D, sul **territorio reale de L'Aquila**: quote, immagini satellitari Sentinel-2 e aeroporti da OpenStreetMap, dal Gran Sasso alla valle dell'Aterno. Pensato per il desktop: renderer PBR dedicato, risoluzione adattiva e installer per Windows.
+**Un simulatore di volo civile realizzato con [Three.js](https://threejs.org/) ed Electron** — pilota **tre velivoli** — un Cessna 172, un Aermacchi **MB-339 delle Frecce Tricolori** e un aliante **Grob G 103C Twin III Acro** (I-IVVQ) — con **vento e termiche**, sul **territorio reale de L'Aquila**: quote, immagini satellitari Sentinel-2 e aeroporti da OpenStreetMap, dal Gran Sasso alla valle dell'Aterno. Pensato per il desktop: renderer PBR dedicato, risoluzione adattiva e installer per Windows.
 
 [![Three.js](https://img.shields.io/badge/Three.js-r187-000000?logo=threedotjs&logoColor=white)](https://threejs.org/)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
@@ -32,6 +32,13 @@
 | 🌐 **Italiano e inglese** | Rilevati automaticamente; cambia quando vuoi con <kbd>L</kbd> |
 
 ## Screenshot
+
+<table><tr>
+<td width="50%"><img src="docs/screenshots/jet.png" alt="MB-339 Frecce Tricolori"><br><sub><b>Aermacchi MB-339 PAN</b> — livrea blu lucido, fascia bianca con filetti verde e rosso, ventre grigio, frecce tricolori sul muso, numero sulla deriva</sub></td>
+<td width="50%"><img src="docs/screenshots/glider.png" alt="Aliante Grob Twin III Acro sul Gran Sasso"><br><sub><b>Grob G 103C Twin III Acro</b> (I-IVVQ) in volo sul massiccio, con variometro e vento nell'HUD</sub></td>
+</tr><tr>
+<td colspan="2"><img src="docs/screenshots/menu.png" alt="Menu opzioni"><br><sub><b>Menu opzioni</b> — velivolo, aeroporto, quota di partenza, vento, turbolenza, termiche, qualità, audio, pannello comandi on/off</sub></td>
+</tr></table>
 
 <table>
   <tr>
@@ -72,6 +79,8 @@ node tools/fetch-ortho.mjs   # riscarica le ortofoto a 50 cm attorno ai due aero
 
 ## Come si vola
 
+**Tre velivoli** (menu ☰ o tasto <kbd>O</kbd>): *Cessna 172*, *MB-339 PAN* (jet: manetta al massimo, rotazione a ~120 kt, <kbd>B</kbd> in volo = aerofreno, il carrello rientra da solo) e aliante *Grob Twin III Acro* (parti in pista con un aerotraino semplificato, sgancio automatico a 500 m o con <kbd>T</kbd>; <kbd>B</kbd> in volo = aerofreni). Con l'aliante cerca le **termiche** (cumuli, variometro verde) sopra i rilievi più massicci e la portanza dei versanti esposti al vento. Dal menu puoi regolare **vento, direzione e turbolenza**, scegliere di **partire in volo a 500–3000 m** sopra il rilievo e **nascondere il pannello dei comandi** (anche con <kbd>H</kbd>). Le scelte vengono ricordate.
+
 1. Premi <kbd>9</kbd> per la manetta al massimo.
 2. A circa **55 kt** tira dolcemente (<kbd>S</kbd>) e lascia che l'aereo si stacchi.
 3. Sali a **70–80 kt**. Rientra i flap (<kbd>G</kbd>) se li hai usati.
@@ -90,6 +99,8 @@ node tools/fetch-ortho.mjs   # riscarica le ortofoto a 50 cm attorno ai due aero
 | <kbd>B</kbd> / <kbd>Spazio</kbd> | Freni |
 | <kbd>C</kbd> | Cambia camera: inseguimento → cockpit → torre → orbita |
 | Trascina il mouse / rotella | Guarda attorno (orbita nella vista orbita) / zoom |
+| <kbd>T</kbd> | Aliante: sgancia il traino |
+| <kbd>O</kbd> | Apri / chiudi il menu opzioni |
 | <kbd>K</kbd> | Passa all'altro aeroporto |
 | <kbd>P</kbd> / <kbd>R</kbd> | Pausa / riparti |
 | <kbd>M</kbd> | Audio on / off |
@@ -115,6 +126,7 @@ Misurato su un portatile ibrido a 1920 × 1080 con `node tools/perf.mjs` (NVIDIA
 
 | Area | Dettagli |
 |---|---|
+| **Velivoli e atmosfera** (`src/specs.js`, `src/atmosphere.js`, `src/jet.js`, `src/glider.js`) | Un solo modello di volo parametrizzato per velivolo (massa, superficie alare, pendenza di portanza, polare, spinta, efficacia dei comandi): MB-339 5.000 kg / 19,3 m² / 17,8 kN con resistenza d'onda oltre Mach 0,74; aliante 580 kg / 17,52 m², efficienza ≈ 36, stallo ≈ 40 kt, aerotraino. L'aerodinamica usa la velocità rispetto alla massa d'aria: vento al suolo con profilo dello strato limite, turbolenza, portanza dei versanti (vento · pendenza) e termiche. Le sorgenti delle termiche sono i massimi del rilievo livellato su ~2 km, con ciclo di vita e inclinate dal vento. I modelli 3D sono costruzioni procedurali originali, dimensionate sui dati pubblicati e confrontate con fotografie di riferimento; livrea con texture e decal, vernice PBR lucida. |
 | **Dinamica di volo** (`src/flight.js`) | Passo fisso a 120 Hz. 1100 kg, ala da 16,2 m², 135 kW con rendimento dell'elica 0,78 e spinta statica di 3,4 kN. Pendenza della portanza 5 per radiante, stallo a 17° di incidenza con calo morbido dopo lo stallo; i flap spostano l'angolo di portanza nulla e aumentano la resistenza. La stabilità in beccheggio cresce vicino allo stallo: si stalla perdendo velocità, non tirando la barra. Carrello triciclo con tre punti di contatto, attrito di rotolamento, freni, sterzo del ruotino. Numeri tipici: corsa di decollo ≈ 250 m, rotazione a 55 kt, salita ≈ 800 ft/min, stallo ≈ 45 kt a flap rientrati, velocità massima ≈ 140 kt. |
 | **Cellula** (`src/geometry.js`, `src/aircraft.js`) | Fusoliera = 170 anelli superellittici × 88 segmenti, loftati da keyframe con interpolazione cubica monotona. Ali, coda, deriva e pale dell'elica nascono da un unico costruttore di superfici portanti NACA a 4 cifre con rastremazione, diedro, svergolamento, estremità arrotondate e tratti di bordo d'uscita cernierati, con i perni sulla linea di cerniera. |
 | **Finestrini e livrea** (`src/livery.js`) | Un set di texture 2048 × 1024 è calcolato una volta da funzioni di distanza con segno nello spazio della fusoliera: vernice, alfa dei finestrini anti-alias, alfa del vetro, guarnizioni, linee dei pannelli e marche. La stessa maschera buca la pelle esterna e un guscio interno rientrante: la cabina è un volume chiuso in cui si vede dentro e fuori. |
@@ -165,9 +177,9 @@ Pubblicando un tag come `v0.5.0`, GitHub Actions compila l'installer e lo allega
 
 ## Roadmap
 
-- Vento e meteo, laghi e fiumi
+- Pioggia e nuvole, laghi e fiumi
 - Navigazione: waypoint, radioassistenze, un semplice pilota automatico
-- Altri aerei (bimotore, jet leggero) e una pipeline per modelli `.glb`
+- Altri aerei e una pipeline per modelli `.glb` (non ho trovato modelli liberi e adattabili di MB-339 o Twin III: quelli online sono royalty-free con limiti di ridistribuzione)
 - Altri aeroporti, modalità notturna con finestre e luci di pista accese
 
 ## Crediti

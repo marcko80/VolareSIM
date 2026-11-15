@@ -7,14 +7,25 @@ export class Hud {
     this.el = {
       ias: $('v-ias'), alt: $('v-alt'), vs: $('v-vs'), hdg: $('v-hdg'), agl: $('v-agl'),
       thr: $('v-thr'), bthr: $('b-thr'), flap: $('v-flap'), brake: $('v-brake'),
-      warnings: $('warnings'), message: $('message'), help: $('help'), dest: $('v-dest'), apt: $('v-apt'),
+      vario: $('v-vario'), wind: $('v-wind'), rVario: $('r-vario'), rThr: $('r-thr'), rFlap: $('r-flap'), warnings: $('warnings'), message: $('message'), help: $('help'), dest: $('v-dest'), apt: $('v-apt'),
     };
     this.adi = $('adi').getContext('2d');
     this.msgTimer = 0;
     this.warnKey = '';
   }
 
-  toggleHelp() { this.el.help.classList.toggle('hidden'); }
+  toggleHelp(show) { const on = show ?? this.el.help.classList.contains('hidden'); this.el.help.classList.toggle('hidden', !on); return on; }
+
+  /** mostra solo le righe pertinenti al velivolo */
+  setAircraft(spec) {
+    const g = spec.kind === 'glider';
+    this.el.rVario.classList.toggle('hide', !g);
+    this.el.rThr.classList.toggle('hide', g);
+    this.el.rFlap.classList.toggle('hide', spec.flaps === 0);
+    this.vario = 0;
+  }
+
+  setWind(text) { if (this.el.wind.textContent !== text) this.el.wind.textContent = text; }
 
   message(text, detail, kind, seconds = 4) {
     const m = this.el.message;
@@ -41,6 +52,9 @@ export class Hud {
     e.bthr.style.width = f.throttle * 100 + '%';
     e.flap.textContent = Math.round(f.flapDeg);
     e.brake.textContent = f.input.brake ? t('on') : '-';
+    this.vario = (this.vario ?? 0) + ((f.vsMs ?? 0) - (this.vario ?? 0)) * Math.min(1, dt * 1.5);
+    e.vario.textContent = (this.vario >= 0 ? '+' : '') + this.vario.toFixed(1);
+    e.vario.style.color = this.vario > 0.3 ? '#7dff9a' : this.vario < -1.5 ? '#ff8a7a' : '';
 
     // avvisi / warnings
     const w = [];

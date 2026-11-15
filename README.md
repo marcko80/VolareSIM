@@ -2,7 +2,7 @@
 
 # ✈️ VolareSIM
 
-**A civil flight simulator built with [Three.js](https://threejs.org/) and Electron** — fly a procedurally modelled Cessna 172, with a real 3D cockpit, over the **real terrain of L'Aquila, Italy**: elevation data, Sentinel-2 satellite imagery and OpenStreetMap airports, from the Gran Sasso to the Aterno valley. Desktop-first: a custom PBR renderer, adaptive resolution and a Windows installer.
+**A civil flight simulator built with [Three.js](https://threejs.org/) and Electron** — fly **three aircraft** — a Cessna 172, an Aermacchi **MB-339 of the Frecce Tricolori** and a **Grob G 103C Twin III Acro glider** (I-IVVQ) — with **wind and thermals**, over the **real terrain of L'Aquila, Italy**: elevation data, Sentinel-2 satellite imagery and OpenStreetMap airports, from the Gran Sasso to the Aterno valley. Desktop-first: a custom PBR renderer, adaptive resolution and a Windows installer.
 
 [![Three.js](https://img.shields.io/badge/Three.js-r187-000000?logo=threedotjs&logoColor=white)](https://threejs.org/)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
@@ -20,6 +20,9 @@
 
 | | |
 |---|---|
+| ✈️ **Three aircraft** | *Cessna 172* (propeller, 3D cockpit), *Aermacchi MB-339 PAN* (jet trainer, 17.8 kN, airbrake, retractable gear, Frecce Tricolori livery) and the aerobatic two-seat *Grob G 103C Twin III Acro* glider, registration **I-IVVQ** (17.5 m span, aero-tow, airbrakes, acoustic vario). Pick from the menu; each has its own flight model |
+| 💨 **Wind & thermals** | Adjustable wind speed and direction, turbulence, ridge lift on windward slopes and **thermals above the biggest massifs** (found automatically from the terrain, drifting with the wind, marked by cumulus clouds) for the glider |
+| ☰ **Drop-down menu** | Aircraft, airport, start (runway or airborne at 500–3000 m over the ridge), camera, wind, turbulence, thermals, graphics quality, sound, language, and a switch to **hide the controls panel** (also <kbd>H</kbd>) — everything is remembered between sessions |
 | 🛩️ **A real airframe, not boxes** | Lofted fuselage with real window openings and an inner shell, tapered NACA 2412 wing with dihedral, hinged flaps, ailerons, elevators and rudder, wheel pants, twisted propeller, navigation lights and strobes, registration painted on the skin |
 | 🎛️ **3D cockpit** | Instrument panel with working airspeed, attitude, altimeter, heading, vertical speed and RPM dials, radio stack and GPS, two linked yokes, throttle and mixture, seats, door panels. Look around with the mouse, zoom with the wheel |
 | 🌅 **Physically based rendering** | HDR pipeline, ACES tone mapping, bloom, reflections from an image-based sky environment, texel-snapped sun shadows that even fall inside the cabin |
@@ -41,6 +44,13 @@
   <tr>
     <td width="50%"><img src="docs/screenshots/takeoff-hud.png" alt="Takeoff with HUD and help"><br><sub><b>Ready for takeoff</b> — HUD, artificial horizon and the built-in help (<kbd>H</kbd>)</sub></td>
     <td width="50%"><img src="docs/screenshots/airport-b.png" alt="Aviosuperficie L'Aquila grass strip"><br><sub><b>Aviosuperficie L'Aquila</b> — the real grass airstrip (runway 11/29) at 1,870 ft</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/jet.png" alt="MB-339 Frecce Tricolori"><br><sub><b>Aermacchi MB-339 PAN</b> — Frecce Tricolori livery: navy gloss paint, white band with green and red pinstripes, grey belly, tricolour nose arrows, fin number</sub></td>
+    <td width="50%"><img src="docs/screenshots/glider.png" alt="Grob Twin III Acro glider over the Gran Sasso"><br><sub><b>Grob G 103C Twin III Acro</b> (I-IVVQ) soaring over the massif, with variometer and wind in the HUD</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/menu.png" alt="Options menu"><br><sub><b>Options menu</b> — aircraft, airport, start altitude, wind, turbulence, thermals, quality, sound, controls panel on/off</sub></td>
   </tr>
   <tr>
     <td colspan="2"><img src="docs/screenshots/lucoli.png" alt="Lucoli valley with real orthophotos"><br><sub><b>Comune di Lucoli</b> — 1–3 m/px AGEA orthophotos: real roads, hairpins, villages and fields</sub></td>
@@ -77,6 +87,8 @@ node tools/fetch-ortho.mjs   # re-download the 50 cm AGEA orthophotos around the
 3. Climb at **70–80 kt**. Retract the flaps (<kbd>G</kbd>) if you used them.
 4. To land, reduce power, extend flaps (<kbd>F</kbd>), fly the approach at about 65 kt, and flare just above the runway. The sim grades your touchdown by sink rate (smooth, good or hard); a violent impact or touching the ground with a wing is a crash — press <kbd>R</kbd> to restart.
 
+**Jet (MB-339):** full throttle, rotate at ~120 kt, <kbd>B</kbd> in flight = airbrake; the gear retracts by itself. **Glider:** you start on the runway with a simplified aero-tow (release automatically at 500 m or with <kbd>T</kbd>); trim speed ~60 kt, <kbd>B</kbd> in flight = airbrakes. Look for thermals (cumulus clouds, green positive vario) and ridge lift on slopes facing the wind. Or choose *Start → Airborne* in the menu to begin at 500–3000 m over a massif.
+
 ### Controls
 
 | Key | Action |
@@ -87,9 +99,11 @@ node tools/fetch-ortho.mjs   # re-download the 50 cm AGEA orthophotos around the
 | <kbd>Shift</kbd> / <kbd>Z</kbd> | Increase / decrease throttle |
 | <kbd>0</kbd>–<kbd>9</kbd> | Set throttle directly (0 = idle, 9 = full) |
 | <kbd>F</kbd> / <kbd>G</kbd> | Flaps down / up (0°, 10°, 20°, 30°) |
-| <kbd>B</kbd> / <kbd>Space</kbd> | Wheel brakes |
+| <kbd>B</kbd> / <kbd>Space</kbd> | Wheel brakes (airbrakes in flight on jet and glider) |
 | <kbd>C</kbd> | Cycle camera: chase → cockpit → tower → orbit |
 | Mouse drag / wheel | Look around (orbit in orbit view) / zoom |
+| <kbd>T</kbd> | Glider: release the tow |
+| <kbd>O</kbd> | Open / close the options menu |
 | <kbd>K</kbd> | Switch to the other airport |
 | <kbd>P</kbd> / <kbd>R</kbd> | Pause / restart |
 | <kbd>M</kbd> | Sound on / off |
@@ -115,6 +129,7 @@ Measured on a hybrid laptop at 1920 × 1080 with `node tools/perf.mjs` (NVIDIA G
 
 | Area | Details |
 |---|---|
+| **Aircraft & atmosphere** (`src/specs.js`, `src/atmosphere.js`, `src/jet.js`, `src/glider.js`) | One flight model parametrised per aircraft (mass, wing area, lift slope, polar, thrust, control power): MB-339 5,000 kg / 19.3 m² / 17.8 kN with wave drag above M 0.74; glider 580 kg / 17.52 m², L/D ≈ 36, stall ≈ 40 kt, aero-tow. Aerodynamics use the airspeed relative to the air mass: surface wind with a boundary-layer profile, turbulence, ridge lift (wind · slope gradient) and thermals. Thermal sources are the maxima of the terrain smoothed over ~2 km, with a life cycle, tilted by the wind. The 3D models are original procedural builds sized from the published dimensions and checked against reference photographs; livery is texture + decals, paint is clear-coated PBR. |
 | **Flight dynamics** (`src/flight.js`) | Fixed 120 Hz step. 1100 kg, 16.2 m² wing, 135 kW with 0.78 propeller efficiency and 3.4 kN static thrust. Lift slope 5 per radian, stall at 17° angle of attack with a smooth post-stall drop; flaps shift the zero-lift angle and add drag. Pitch stiffness grows near the stall, so you stall by getting too slow rather than by pulling the stick. Tricycle gear with three contact points, rolling friction, brakes, nose-wheel steering. Typical numbers: take-off roll ≈ 250 m, rotation 55 kt, climb ≈ 800 ft/min, clean stall ≈ 45 kt, top speed ≈ 140 kt. |
 | **Airframe** (`src/geometry.js`, `src/aircraft.js`) | Fuselage = 170 super-elliptical rings × 88 segments lofted from monotone-cubic keyframes. Wings, tail, fin and propeller blades come from one NACA 4-digit lifting-surface builder with taper, dihedral, twist, rounded tips and hinged trailing-edge pieces whose pivots sit on the hinge line. |
 | **Window openings & livery** (`src/livery.js`) | A 2048 × 1024 texture set is computed once from signed-distance functions in fuselage space: paint, anti-aliased window alpha, glass alpha, gaskets, panel lines and the registration. The same mask cuts the exterior skin and an inset interior shell, so the cabin is a real enclosed volume you can see into and out of. |
@@ -135,6 +150,10 @@ VolareSIM/
 │   ├── geometry.js        # lofting, airfoils, lifting surfaces
 │   ├── livery.js          # fuselage textures (paint, windows, interior)
 │   ├── aircraft.js        # Cessna model and animation
+│   ├── jet.js, glider.js  # MB-339 PAN and Grob Twin III Acro models
+│   ├── specs.js           # per-aircraft flight data
+│   ├── atmosphere.js      # wind, turbulence, ridge lift, thermals
+│   ├── menu.js            # drop-down options menu
 │   ├── cockpit.js         # 3D cockpit
 │   ├── world.js           # terrain, trees, airports
 │   ├── sky.js             # sky shader, environment map
@@ -165,9 +184,9 @@ Pushing a tag such as `v0.5.0` makes GitHub Actions build the installer and atta
 
 ## Roadmap
 
-- Wind and weather, lakes and rivers
+- Rain/clouds weather, lakes and rivers
 - Navigation: waypoints, radio aids, a simple autopilot
-- More aircraft (twin-engine, light jet) and a `.glb` model pipeline
+- More aircraft and a `.glb` model pipeline (no freely licensed, adaptable models of the MB-339 or Twin III were found; the ones listed online are royalty-free with redistribution limits)
 - More airports, a night mode with lit windows and runway lights
 
 ## Credits

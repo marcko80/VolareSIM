@@ -12,6 +12,8 @@
   <div id="loading"><div class="logo">VolareSIM</div><div class="bar"><i></i></div><div class="txt" data-i18n="loading">Loading…</div></div>
 
   <button id="lang" title="L">EN</button>
+  <button id="menuBtn" title="O"><span>☰</span> <i data-i18n="menu">Menu</i></button>
+  <div id="menu" class="hidden"></div>
 
   <div id="warnings"></div>
   <div id="message"></div>
@@ -23,15 +25,17 @@
     <div class="row"><span data-i18n="vs">V/S</span><b id="v-vs">0</b><i>ft/min</i></div>
     <div class="row"><span data-i18n="hdg">HEADING</span><b id="v-hdg">000</b><i>°</i></div>
     <div class="row"><span data-i18n="agl">AGL</span><b id="v-agl">0</b><i>m</i></div>
-    <div class="bar"><span data-i18n="thr">THROTTLE</span><div class="track"><div id="b-thr"></div></div><b id="v-thr">0%</b></div>
-    <div class="row"><span data-i18n="flap">FLAPS</span><b id="v-flap">0</b><i>°</i></div>
+    <div class="bar" id="r-thr"><span data-i18n="thr">THROTTLE</span><div class="track"><div id="b-thr"></div></div><b id="v-thr">0%</b></div>
+    <div class="row" id="r-flap"><span data-i18n="flap">FLAPS</span><b id="v-flap">0</b><i>°</i></div>
+    <div class="row" id="r-vario"><span data-i18n="vario">VARIO</span><b id="v-vario">0.0</b><i>m/s</i></div>
+    <div class="row"><span data-i18n="wind">WIND</span><b id="v-wind">—</b><i>kt</i></div>
     <div class="row"><span data-i18n="brake">BRAKES</span><b id="v-brake">-</b></div>
   </div>
 
   <canvas id="adi" width="180" height="180"></canvas>
 
   <div id="help">
-    <b data-i18n="helpTitle">CONTROLS</b>
+    <button id="helpClose" title="H">×</button><b data-i18n="helpTitle">CONTROLS</b>
     <table>
       <tr><td>W / S</td><td data-i18n="kPitch"></td></tr>
       <tr><td>A / D</td><td data-i18n="kRoll"></td></tr>
@@ -42,6 +46,8 @@
       <tr><td>B / Space</td><td data-i18n="kBrakes"></td></tr>
       <tr><td>C</td><td data-i18n="kCamera"></td></tr>
       <tr><td data-i18n="kMouseKey"></td><td data-i18n="kMouse"></td></tr>
+      <tr><td>T</td><td data-i18n="kTow"></td></tr>
+      <tr><td>O</td><td data-i18n="kMenu"></td></tr>
       <tr><td>K</td><td data-i18n="kAirport"></td></tr>
       <tr><td>P / R</td><td data-i18n="kPause"></td></tr>
       <tr><td>M</td><td data-i18n="kAudio"></td></tr>

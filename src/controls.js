@@ -1,6 +1,6 @@
 const GAME_KEYS = new Set([
   'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyF', 'KeyG', 'KeyB', 'KeyC', 'KeyP', 'KeyR', 'KeyH', 'KeyZ',
-  'KeyK', 'KeyM', 'KeyI', 'KeyL', 'KeyV',
+  'KeyK', 'KeyM', 'KeyI', 'KeyL', 'KeyV', 'KeyT', 'KeyO',
   'Space', 'ShiftLeft', 'ShiftRight', 'PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
   'Digit0', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9',
 ]);
@@ -29,6 +29,7 @@ export class Controls {
 
     window.addEventListener('keydown', (e) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (/^(SELECT|INPUT|TEXTAREA)$/.test(e.target?.tagName || '')) return;
       if (!GAME_KEYS.has(e.code)) return;
       e.preventDefault();
       if (!this.keys.has(e.code)) this.keys.add(e.code);
@@ -44,6 +45,8 @@ export class Controls {
         case 'KeyM': actions.mute(); break;
         case 'KeyL': actions.lang(); break;
         case 'KeyV': actions.quality(); break;
+        case 'KeyT': actions.tow(); break;
+        case 'KeyO': actions.menu(); break;
         case 'KeyI':
           this.invertPitch = !this.invertPitch;
           actions.notify('padAxis', this.invertPitch ? 'inverted' : 'normal');

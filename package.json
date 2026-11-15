@@ -1,8 +1,8 @@
 {
   "name": "volaresim",
   "productName": "VolareSIM",
-  "version": "0.9.1",
-  "description": "Civil flight simulator (Cessna) over the real terrain of L'Aquila, Italy - Three.js + Electron",
+  "version": "1.0.0",
+  "description": "Flight simulator (Cessna 172, MB-339 Frecce Tricolori, Grob Twin III glider) over the real terrain of L'Aquila, Italy - Three.js + Electron",
   "author": "marcko80",
   "private": true,
   "type": "module",

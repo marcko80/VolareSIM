@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 /* ------------------------------------------------------------------ interpolazione monotona (PCHIP) */
-function pchip(xs, ys) {
+export function pchip(xs, ys) {
   const n = xs.length;
   const h = [], d = [], m = new Array(n);
   for (let i = 0; i < n - 1; i++) { h[i] = xs[i + 1] - xs[i]; d[i] = (ys[i + 1] - ys[i]) / h[i]; }

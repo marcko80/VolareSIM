@@ -7,7 +7,7 @@ import { DecalGeometry } from 'three/examples/jsm/geometries/DecalGeometry.js';
  */
 const NAVY = '#183a82', RED = '#be2028';
 
-function canvasTex(w, h, draw) {
+export function canvasTex(w, h, draw) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   draw(c.getContext('2d'), w, h);
@@ -18,7 +18,7 @@ function canvasTex(w, h, draw) {
 }
 
 /** logo: disco blu con ala stilizzata a "V", filetto rosso e scia bianca */
-function logoTexture() {
+export function logoTexture() {
   return canvasTex(512, 512, (g) => {
     g.translate(256, 256);
     g.fillStyle = '#ffffff'; g.beginPath(); g.arc(0, 0, 250, 0, Math.PI * 2); g.fill();
@@ -36,7 +36,7 @@ function logoTexture() {
   });
 }
 
-function flagTexture() {
+export function flagTexture() {
   return canvasTex(300, 200, (g, w, h) => {
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
     g.fillStyle = '#008c45'; g.fillRect(8, 8, w / 3 - 8, h - 16);
@@ -47,7 +47,7 @@ function flagTexture() {
 }
 
 /** scritta in corsivo con contorno bianco, trasparente intorno */
-function wordTexture(text, w, h, size, color = NAVY, accent = RED) {
+export function wordTexture(text, w, h, size, color = NAVY, accent = RED) {
   return canvasTex(w, h, (g) => {
     g.font = `italic 800 ${size}px "Segoe UI", Arial, sans-serif`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -59,7 +59,7 @@ function wordTexture(text, w, h, size, color = NAVY, accent = RED) {
 }
 
 /** marche di immatricolazione: lettere grandi, tratto pieno, contorno bianco sottile */
-function regTexture(text) {
+export function regTexture(text) {
   return canvasTex(1024, 256, (g, w, h) => {
     g.font = 'bold 190px Arial, sans-serif';
     g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -75,7 +75,7 @@ const helper = new THREE.Object3D();
  * incolla un adesivo sulla mesh nel punto `pos` (coordinate del gruppo), con normale `n` e verso "alto" `up`.
  * Le coordinate sono quelle del gruppo dell'aereo, che al momento della costruzione coincidono con il mondo.
  */
-function decal(group, mesh, tex, pos, n, up, size, { mirror = false, order = 1 } = {}) {
+export function decal(group, mesh, tex, pos, n, up, size, { mirror = false, order = 1 } = {}) {
   // porta il centro esattamente sulla superficie (raggio da fuori) e usa una profondità sottile: un solo lato dell'ala/deriva
   pos = pos.clone();
   const hit = new THREE.Raycaster(pos.clone().addScaledVector(n, 2), n.clone().negate(), 0, 4).intersectObject(mesh, false)[0];

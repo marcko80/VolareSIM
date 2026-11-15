@@ -79,3 +79,29 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8ab; font-f
 #loading .bar i { display: block; width: 40%; height: 100%; background: #6fb6ff; animation: load 1.2s ease-in-out infinite; }
 #loading .txt { font: 12px "Segoe UI", system-ui, sans-serif; letter-spacing: .18em; color: #8aa3bd; text-transform: uppercase; }
 @keyframes load { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+
+#menuBtn {
+  position: fixed; left: 76px; top: 16px; padding: 6px 12px; font: 700 12px "Segoe UI", system-ui, sans-serif; letter-spacing: .08em;
+  color: #fff; background: rgba(10, 18, 28, .62); border: 1px solid rgba(255,255,255,.2); border-radius: 8px; cursor: pointer; z-index: 20;
+}
+#menuBtn i { font-style: normal; }
+#menuBtn:hover, #menuBtn.on { background: rgba(40, 80, 130, .75); }
+#menu {
+  position: fixed; left: 16px; top: 54px; width: 300px; max-height: calc(100vh - 80px); overflow: auto; padding: 8px 12px 12px; z-index: 20;
+  background: rgba(10, 18, 28, .86); border: 1px solid rgba(255,255,255,.18); border-radius: 10px; backdrop-filter: blur(6px);
+  font-size: 12.5px;
+}
+#menu.hidden { display: none; }
+#menu .mhead { margin: 10px 0 4px; font-size: 10.5px; letter-spacing: .14em; color: #8da2b8; border-bottom: 1px solid rgba(255,255,255,.12); padding-bottom: 3px; }
+#menu .mhead:first-child { margin-top: 2px; }
+#menu .mrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 5px 0; }
+#menu .mrow.dim { opacity: .45; }
+#menu .mrow > span { color: #c4d0dc; flex: 0 0 auto; }
+#menu select, #menu .mbtn { flex: 1; max-width: 170px; padding: 4px 6px; color: #fff; background: #16263a; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; font: inherit; cursor: pointer; }
+#menu .mrange { display: flex; align-items: center; gap: 8px; flex: 1; max-width: 170px; }
+#menu .mrange input { flex: 1; min-width: 0; accent-color: #ffd37a; }
+#menu .mrange b { width: 46px; text-align: right; color: #ffd37a; font-variant-numeric: tabular-nums; }
+#menu input[type=checkbox] { width: 18px; height: 18px; accent-color: #ffd37a; }
+#helpClose { float: right; margin: -4px -6px 0 12px; width: 22px; height: 22px; color: #fff; background: rgba(255,255,255,.1); border: 0; border-radius: 5px; cursor: pointer; font-size: 15px; line-height: 20px; }
+#helpClose:hover { background: rgba(255,255,255,.25); }
+#panel .hide { display: none !important; }

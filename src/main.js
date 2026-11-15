@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import { createWorld, AIRPORTS, spawnFor, localToWorld, terrainHeight } from './world.js';
-import { createCessna } from './aircraft.js';
-import { createCockpit, EYE } from './cockpit.js';
+import { getAircraft } from './fleet.js';
+import { SPECS, AIRCRAFT_IDS } from './specs.js';
+import { Atmosphere } from './atmosphere.js';
+import { ThermalClouds } from './thermalvis.js';
+import { createMenu } from './menu.js';
 import { Flight } from './flight.js';
 import { Controls } from './controls.js';
 import { Hud } from './hud.js';
@@ -26,17 +29,28 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.4, 40000);
 
 const world = await createWorld(scene, renderer);
-const plane = createCessna();
-scene.add(plane.group);
-const cockpit = createCockpit();
-plane.group.add(cockpit.group);
+const atmosphere = new Atmosphere();
+atmosphere.init();
+const clouds = new ThermalClouds(scene);
+let plane = null, cockpit = null, EYE = null, acId = 'c172';
 let post = null; // composer (livelli 1-2); a livello 0 si disegna direttamente
 
 const hud = new Hud();
 const audio = new SimAudio();
 let airportIdx = 0;
 
+// impostazioni ricordate tra una sessione e l'altra
+const SETTINGS_KEY = 'volaresim.settings.v1';
+const settings = { aircraft: 'c172', start: 'rwy', windKt: 0, windDir: 270, turb: 30, thermals: true, help: true };
+try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch { /* ignora */ }
+if (!SPECS[settings.aircraft]) settings.aircraft = 'c172';
+const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignora */ } };
+atmosphere.turbulence = settings.turb / 100;
+atmosphere.thermals = settings.thermals;
+atmosphere.setWind(settings.windKt, settings.windDir);
+
 const flight = new Flight((ev) => {
+  if (ev.type === 'release') { hud.message(t('released'), '', 'ok', 2.5); return; }
   if (ev.type === 'landing') {
     hud.message(t(ev.key), `${ev.fpm} ft/min${ev.offRunway ? ' — ' + t('offRunway') : ''}`, ev.grade, 5);
     audio.thump(ev.grade === 'good' ? 0.5 : ev.grade === 'ok' ? 1 : 1.8);
@@ -45,6 +59,7 @@ const flight = new Flight((ev) => {
     audio.thump(2.5);
   }
 });
+flight.air = atmosphere;
 
 // ---------------------------------------------------------------- qualità grafica
 const QUALITY = ['qLow', 'qMed', 'qHigh'];
@@ -91,21 +106,59 @@ const look = { yaw: 0, pitch: 0, drag: false };
 const orbit = { az: 0.7, el: 0.28, d: 11 };
 const zoom = { chase: 13, cockpitFov: 72 };
 
+let gearOut = 1;
 function applyCameraMode() {
   const id = CAMERAS[camIndex].id;
-  cockpit.setActive(id === 'cockpit');
+  if (cockpit) cockpit.setActive(id === 'cockpit');
   document.getElementById('adi').classList.toggle('hidden', id === 'cockpit');
   camera.near = id === 'cockpit' ? 0.08 : id === 'tower' ? 2 : 0.4;
   camera.fov = id === 'cockpit' ? zoom.cockpitFov : 60;
   camera.updateProjectionMatrix();
 }
 
+/** punto di partenza in volo: a monte di un massiccio, in rotta verso di esso, a quota AGL sopra la cima */
+function airSpawn(agl) {
+  const a = AIRPORTS[airportIdx];
+  const sites = atmosphere.sites.filter((s) => Math.hypot(s.x - a.x, s.z - a.z) < 30000);
+  const site = (sites.length ? sites : atmosphere.sites)[0];
+  if (!site) return spawnFor(a);
+  const wl = Math.hypot(atmosphere.wx, atmosphere.wz);
+  // controvento verso il rilievo se c'è vento, altrimenti dall'aeroporto verso il rilievo
+  let dx = wl > 1 ? -atmosphere.wx / wl : site.x - a.x, dz = wl > 1 ? -atmosphere.wz / wl : site.z - a.z;
+  const dl = Math.hypot(dx, dz) || 1; dx /= dl; dz /= dl;
+  const x = site.x - dx * 1800, z = site.z - dz * 1800;
+  let top = 0;
+  for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) top = Math.max(top, terrainHeight(site.x + i * 500, site.z + j * 500));
+  const y = Math.max(top, terrainHeight(x, z)) + agl;
+  return { x, z, y, yaw: -Math.atan2(dx, -dz), speed: flight.spec.spawn.speed };
+}
+
 function reset() {
-  flight.reset(spawnFor(AIRPORTS[airportIdx]));
+  const agl = settings.start === 'rwy' ? 0 : +settings.start;
+  flight.reset(agl ? airSpawn(agl) : spawnFor(AIRPORTS[airportIdx]));
   camQuat.copy(flight.quat);
   hud.hideMessage();
-  hud.message(AIRPORTS[airportIdx].name, t('ready'), 'ok', 5);
+  const kind = flight.spec.kind;
+  const msg = agl ? t('readyAir') : kind === 'jet' ? t('readyJet') : kind === 'glider' ? t('readyGlider') : t('ready');
+  hud.message(agl ? t('ac_' + acId) : AIRPORTS[airportIdx].name, msg, 'ok', 6);
   world.warmup?.(camera);
+}
+
+const ZOOMS = { c172: [13, 11], mb339: [21, 17], glider: [24, 19] };
+function setAircraft(id, announce = true) {
+  if (plane) plane.group.visible = false;
+  acId = id; settings.aircraft = id; saveSettings();
+  plane = getAircraft(id);
+  if (!plane.group.parent) scene.add(plane.group);
+  plane.group.visible = true;
+  cockpit = plane.cockpit; EYE = plane.eye;
+  flight.setSpec(SPECS[id]);
+  zoom.chase = ZOOMS[id][0]; orbit.d = ZOOMS[id][1];
+  gearOut = 1;
+  hud.setAircraft(SPECS[id]);
+  clouds.setVisible(id === 'glider' && settings.thermals);
+  applyCameraMode();
+  if (announce) reset();
 }
 
 const controls = new Controls(flight, {
@@ -113,16 +166,48 @@ const controls = new Controls(flight, {
     camIndex = (camIndex + 1) % CAMERAS.length;
     applyCameraMode();
     hud.message(t('camera'), t(CAMERAS[camIndex].name), 'ok', 1.2);
+    menu.sync();
   },
   pause: () => { paused = !paused; },
   reset,
-  help: () => hud.toggleHelp(),
-  airport: () => { airportIdx = (airportIdx + 1) % AIRPORTS.length; reset(); },
-  mute: () => { audio.start(); hud.message(t('audio'), t(audio.toggleMute() ? 'audioOff' : 'audioOn'), 'ok', 1.2); },
+  help: () => { settings.help = hud.toggleHelp(); saveSettings(); menu.sync(); },
+  tow: () => { const r = flight.toggleTow(); if (r === true) hud.message(t('readyGlider'), '', 'ok', 4); },
+  menu: () => menu.toggle(),
+  airport: () => { airportIdx = (airportIdx + 1) % AIRPORTS.length; reset(); menu.sync(); },
+  mute: () => { audio.start(); hud.message(t('audio'), t(audio.toggleMute() ? 'audioOff' : 'audioOn'), 'ok', 1.2); menu.sync(); },
   notify: (key, d, raw) => hud.message(t(key), raw ? d : t(d), 'ok', 2.5),
   lang: () => { toggleLang(); hud.message(t('language'), t('langName'), 'ok', 1.2); },
-  quality: () => applyQuality((quality + 2) % 3, true, true),
+  quality: () => { applyQuality((quality + 2) % 3, true, true); menu.sync(); },
 });
+
+// ---------------------------------------------------------------- menu a discesa
+const menu = createMenu({
+  aircraft: AIRCRAFT_IDS.map((id) => [id, 'ac_' + id]),
+  airports: AIRPORTS.map((a, i) => [String(i), a.name, true]),
+  cameras: CAMERAS.map((c, i) => [String(i), c.name]),
+  qualities: QUALITY.map((q, i) => [String(i), q]),
+  get: (k) => ({
+    aircraft: acId, airport: airportIdx, start: settings.start, camera: camIndex, quality,
+    windKt: settings.windKt, windDir: settings.windDir, turb: settings.turb, thermals: settings.thermals,
+    sound: !audio.muted, help: !document.getElementById('help').classList.contains('hidden'), langName: t('langName'),
+  })[k],
+  set: (k, v) => {
+    if (k === 'aircraft') setAircraft(v);
+    else if (k === 'airport') { airportIdx = +v; reset(); }
+    else if (k === 'start') { settings.start = v; saveSettings(); reset(); }
+    else if (k === 'camera') { camIndex = +v; applyCameraMode(); }
+    else if (k === 'quality') applyQuality(+v, true, true);
+    else if (k === 'windKt' || k === 'windDir') { settings[k] = v; atmosphere.setWind(settings.windKt, settings.windDir); saveSettings(); }
+    else if (k === 'turb') { settings.turb = v; atmosphere.turbulence = v / 100; saveSettings(); }
+    else if (k === 'thermals') { settings.thermals = v; atmosphere.thermals = v; clouds.setVisible(acId === 'glider' && v); saveSettings(); }
+    else if (k === 'sound') { audio.start(); if (audio.muted === v) audio.toggleMute(); }
+    else if (k === 'help') { hud.toggleHelp(v); settings.help = v; saveSettings(); }
+    else if (k === 'lang') { toggleLang(); menu.sync(); }
+  },
+  reset: () => controls.actions.reset(),
+});
+document.getElementById('helpClose').addEventListener('click', (e) => { controls.actions.help(); e.currentTarget.blur(); });
+hud.toggleHelp(settings.help);
 
 const wake = () => audio.start();
 window.addEventListener('keydown', wake);
@@ -215,8 +300,9 @@ window.addEventListener('resize', () => {
 
 document.getElementById('lang').addEventListener('click', (e) => { controls.actions.lang(); e.currentTarget.blur(); });
 applyQuality(quality, false);
-applyCameraMode();
+setAircraft(settings.aircraft, false);
 reset();
+menu.sync();
 
 const STEP = 1 / 120;
 let last = performance.now(), acc = 0, propAngle = 0, time = 0;
@@ -237,16 +323,23 @@ function frame(now) {
   plane.group.position.copy(flight.pos);
   plane.group.quaternion.copy(flight.quat);
   const rpmNorm = flight.crashed ? 0 : Math.min(1, flight.throttle * 1.15);
-  if (!paused) propAngle += (flight.crashed ? 0 : 8 + flight.throttle * 70) * dt;
-  plane.prop.rotation.z = propAngle;
-  plane.animate({ ...flight.input, flapDeg: flight.flapDeg, time, rpmNorm });
+  if (plane.prop) {
+    if (!paused) propAngle += (flight.crashed ? 0 : 8 + flight.throttle * 70) * dt;
+    plane.prop.rotation.z = propAngle;
+  }
+  // carrello: fisso sul Cessna, si ritrae in volo su jet e aliante
+  const gearTarget = flight.spec.kind === 'prop' || flight.onGround || flight.agl < 40 ? 1 : flight.agl > 90 ? 0 : gearOut > 0.5 ? 1 : 0;
+  gearOut += Math.max(-1.6 * dt, Math.min(1.6 * dt, gearTarget - gearOut));
+  plane.animate({ ...flight.input, flapDeg: flight.flapDeg, time, rpmNorm, brakeExt: flight.brakeExt, gearOut });
   cockpit.update(flight);
 
   const t0 = performance.now();
   updateCamera(dt);
   world.update(flight.pos, camera, dt, time);
+  clouds.update(atmosphere, flight.simTime, dt, camera.position);
   const t1 = performance.now();
   updateNav();
+  hud.setWind(settings.windKt < 1 ? t('calm') : String(settings.windDir).padStart(3, '0') + '° / ' + settings.windKt);
   hud.update(flight, dt, paused);
   audio.update(flight, dt, paused, CAMERAS[camIndex].id === 'cockpit');
   const t2 = performance.now();
@@ -278,7 +371,7 @@ requestAnimationFrame(frame);
 
 // utile per debug e per gli screenshot
 window.__sim = {
-  flight, controls, camera, scene, THREE, setLang, world, renderer, gpuName, look,
+  flight, controls, camera, atmosphere, settings, setAircraft, menu, clouds, scene, THREE, setLang, world, renderer, gpuName, look,
   setAdaptive: (v) => { adaptive = v; },
   get resScale() { return resScale; }, get quality() { return quality; }, setResScale: (v) => { resScale = v; applyResolution(); },
   setCamera: (i) => { camIndex = i; applyCameraMode(); },
