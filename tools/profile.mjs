@@ -23,7 +23,7 @@ const measure = `new Promise((res) => { let n = 0, last = performance.now(); con
   const tick = (now) => { n++; if (now - t0 > 3000) res((n / ((now - t0) / 1000)).toFixed(1)); else requestAnimationFrame(tick); };
   requestAnimationFrame(tick); })`;
 const base = `(() => { const s = window.__sim, f = s.flight, T = s.THREE;
-  f.pos.set(300, 160, 200); f.onGround = false; f.airTime = 9;
+  f.pos.set(300, 900, 200); f.onGround = false; f.airTime = 9;
   f.quat.setFromEuler(new T.Euler(0.02, -0.4, -0.2, 'YXZ')); f.vel.set(0, 0, 0); f.throttle = 0.0; f.crashed = false;
   window.__hide = (pred, v) => s.scene.traverse((o) => { if (pred(o)) o.visible = v; });
   s.setCamera(${CAM}); s.camReset(); return true; })()`;

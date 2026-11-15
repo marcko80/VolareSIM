@@ -5,6 +5,8 @@ const path = require('path');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 // grafica: usa la GPU (anche se in blocklist), preferisce quella dedicata sui portatili ibridi
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
+// i dati reali (quote, OpenStreetMap) si leggono con XMLHttpRequest da file://
+app.commandLine.appendSwitch('allow-file-access-from-files');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('force_high_performance_gpu');
 

@@ -28,7 +28,7 @@ const info = await run('(() => { const gl = document.createElement("canvas").get
 console.log('GPU:', info);
 
 const setup = (cam) => `(() => { const s = window.__sim, f = s.flight, T = s.THREE;
-  f.pos.set(300, 160, 200); f.onGround = false; f.airTime = 9;
+  f.pos.set(300, 900, 200); f.onGround = false; f.airTime = 9;
   f.quat.setFromEuler(new T.Euler(0.02, -0.4, -0.2, 'YXZ')); f.vel.set(0, 0, -45).applyQuaternion(f.quat); f.throttle = 0.7;
   s.setCamera(${cam}); s.camReset(); return true; })()`;
 const measure = `new Promise((res) => { let n = 0, worst = 0, last = performance.now(); const t0 = last;

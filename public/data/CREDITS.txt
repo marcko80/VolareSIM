@@ -1,0 +1,9 @@
+Dati reali dell'area di L'Aquila (generati da tools/fetch-data.mjs)
+
+Immagini: Sentinel-2 cloudless 2016 (https://s2maps.eu) di EOX IT Services GmbH.
+  Licenza CC BY 4.0. Contiene dati Copernicus Sentinel modificati (2016).
+Quote: Terrain Tiles / Terrarium su AWS Open Data (https://registry.opendata.aws/terrain-tiles/),
+  derivati da SRTM, USGS 3DEP, GMTED2010 e altre fonti pubbliche.
+Piste, raccordi, piazzali, edifici, strade e acque: © OpenStreetMap contributors, licenza ODbL 1.0
+  (https://www.openstreetmap.org/copyright).
+Le classi di copertura (bosco, urbano, roccia, acqua) sono una stima automatica da colore, quota e pendenza.

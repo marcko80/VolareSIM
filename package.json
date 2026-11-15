@@ -1,8 +1,8 @@
 {
   "name": "volaresim",
   "productName": "VolareSIM",
-  "version": "0.5.0",
-  "description": "Simple civil flight simulator (Cessna) built with Three.js - runs in the browser and as a Windows desktop app",
+  "version": "0.6.0",
+  "description": "Civil flight simulator (Cessna) over the real terrain of L'Aquila, Italy - Three.js + Electron",
   "author": "marcko80",
   "private": true,
   "type": "module",
@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "app": "vite build && electron .",
     "dist": "vite build && electron-builder --win --publish never",
-    "screenshots": "vite build && node tools/screenshots.mjs"
+    "screenshots": "vite build && node tools/screenshots.mjs",
+    "fetch-data": "node tools/fetch-data.mjs"
   },
   "dependencies": {
     "three": "^0.187.0",
@@ -21,7 +22,9 @@
   },
   "devDependencies": {
     "electron": "^45.3.2",
-    "electron-builder": "^26.18.0"
+    "electron-builder": "^26.18.0",
+    "jpeg-js": "^0.4.4",
+    "pngjs": "^7.0.0"
   },
   "build": {
     "appId": "com.volaresim.app",

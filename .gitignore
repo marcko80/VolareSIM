@@ -5,3 +5,6 @@ release/
 *.log
 
 _dl/
+
+tools/.cache/
+_tmp/

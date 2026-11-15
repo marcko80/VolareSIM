@@ -67,6 +67,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8ab; font-f
 }
 #lang:hover { background: rgba(40, 80, 130, .7); }
 #help .pad div { margin-top: 2px; }
+#help .attr { margin-top: 8px; max-width: 330px; font-size: 9.5px; line-height: 1.4; color: #8da2b8; }
 
 #loading {
   position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;

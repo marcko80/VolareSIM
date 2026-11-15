@@ -2,7 +2,7 @@
 
 # ✈️ VolareSIM
 
-**Un simulatore di volo civile realizzato con [Three.js](https://threejs.org/) ed Electron** — pilota un Cessna 172 modellato proceduralmente, con un vero cockpit 3D, tra due aeroporti. Pensato per il desktop: renderer PBR dedicato, risoluzione adattiva e installer per Windows.
+**Un simulatore di volo civile realizzato con [Three.js](https://threejs.org/) ed Electron** — pilota un Cessna 172 modellato proceduralmente, con un vero cockpit 3D, sul **territorio reale de L'Aquila**: quote, immagini satellitari Sentinel-2 e aeroporti da OpenStreetMap, dal Gran Sasso alla valle dell'Aterno. Pensato per il desktop: renderer PBR dedicato, risoluzione adattiva e installer per Windows.
 
 [![Three.js](https://img.shields.io/badge/Three.js-r187-000000?logo=threedotjs&logoColor=white)](https://threejs.org/)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
@@ -12,7 +12,7 @@
 
 [English](README.md) · **Italiano**
 
-<img src="docs/screenshots/hero-chase.png" alt="Il Cessna in virata sopra la pista di Volare Intl" width="900">
+<img src="docs/screenshots/hero-chase.png" alt="Il Cessna in virata sopra l'aeroporto di L'Aquila-Preturo con il Gran Sasso sullo sfondo" width="900">
 
 </div>
 
@@ -23,8 +23,9 @@
 | 🛩️ **Una vera cellula, non scatole** | Fusoliera loftata con finestrini aperti e guscio interno, ala rastremata NACA 2412 con diedro, flap, alettoni, equilibratori e timone cernierati, carenature delle ruote, elica svergolata, luci di navigazione e strobo, marche dipinte sulla pelle |
 | 🎛️ **Cockpit 3D** | Cruscotto con anemometro, orizzonte, altimetro, prua, variometro e giri motore funzionanti, pila radio e GPS, due volantini collegati, manetta e miscela, sedili, pannelli porta. Guardi attorno col mouse, zoom con la rotella |
 | 🌅 **Rendering fisicamente basato** | Pipeline HDR, tone mapping ACES, bloom, riflessi da un ambiente basato sul cielo, ombre del sole agganciate ai texel che cadono perfino dentro l'abitacolo |
-| ☁️ **Cielo procedurale, terreno fotografico** | Cielo in shader con nuvole in movimento e sole HDR; terreno di 26 × 26 km a chunk con LOD, composto da vere texture fotografiche CC0 (erba, prato, sottobosco, terra arata, roccia) con transizioni morbide e irregolari; foreste di conifere e latifoglie con texture reali di corteccia, foglie e aghi; asfalto fotografico sulle piste; mare oltre la costa |
-| 🌍 **Due aeroporti** | *Volare Intl* (livello del mare, 1200 m) e *Monte Alto* (90 m, 900 m, prua 060°) a circa 9 km di distanza, con terminal, hangar ad arco, torre, serbatoi, PAPI, luci di pista, manica a vento, fari e aerei parcheggiati |
+| 🗺️ **Territorio reale de L'Aquila** | Un'area di 38 × 38 km con quote vere (Gran Sasso fino a 2.850 m), colori da satellite Sentinel-2, strade, fiumi e laghi da OpenStreetMap e classi di copertura (bosco, urbano, roccia, acqua) stimate dall'immagine. Da vicino texture fotografiche CC0 aggiungono grana |
+| 🌲 **Boschi** | Conifere e latifoglie con texture, piazzate dove il satellite vede bosco; gli alberi lontani diventano sagome economiche renderizzate dai veri modelli 3D |
+| 🌍 **Due piste reali** | *L'Aquila-Preturo* (LIAP, pista 18/36, 1.410 m, 2.200 ft) e l'*Aviosuperficie L'Aquila* in erba (11/29, 650 m), a 19 km di distanza. Piste, raccordi, piazzali e circa 900 edifici attorno arrivano da OpenStreetMap |
 | ⚡ **Prestazioni adattive** | Riconosce le GPU integrate e adatta la risoluzione di rendering (55–100 %) al volo, poi riduce il livello di qualità se serve; con <kbd>V</kbd> scegli a mano |
 | 🔊 **Suoni sintetizzati** | Motore a quattro cilindri legato ai giri, elica, vento, rotolamento, cicalino di stallo e tonfo del contatto: nessun file audio |
 | 🎮 **Tastiera, mouse, joystick, gamepad** | Funzionano subito grazie alla Gamepad API |
@@ -39,7 +40,7 @@
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/takeoff-hud.png" alt="Pronti al decollo con HUD e aiuto"><br><sub><b>Pronti al decollo</b> — HUD, orizzonte artificiale e pannello dei comandi (<kbd>H</kbd>)</sub></td>
-    <td width="50%"><img src="docs/screenshots/airport-b.png" alt="Aeroporto Monte Alto"><br><sub><b>Monte Alto</b> — il secondo aeroporto a 295 ft, con hangar, terminal, torre, PAPI e faro</sub></td>
+    <td width="50%"><img src="docs/screenshots/airport-b.png" alt="Aviosuperficie L'Aquila"><br><sub><b>Aviosuperficie L'Aquila</b> — la vera pista in erba (11/29) a 1.870 ft</sub></td>
   </tr>
   <tr>
     <td colspan="2"><img src="docs/screenshots/approach.png" alt="Finale con interfaccia in italiano"><br><sub><b>Finale</b> con flap a 20° — qui con l'interfaccia in italiano</sub></td>
@@ -62,6 +63,7 @@ npm install
 npm run app          # compila e avvia l'app Electron
 npm run dev          # server Vite (http://localhost:5173) per lo sviluppo
 npm run dist         # crea installer e versione portable in release/
+npm run fetch-data   # riscarica i dati del terreno reale (serve internet)
 ```
 
 ## Come si vola
@@ -114,7 +116,8 @@ Misurato su un portatile ibrido a 1920 × 1080 con `node tools/perf.mjs` (NVIDIA
 | **Finestrini e livrea** (`src/livery.js`) | Un set di texture 2048 × 1024 è calcolato una volta da funzioni di distanza con segno nello spazio della fusoliera: vernice, alfa dei finestrini anti-alias, alfa del vetro, guarnizioni, linee dei pannelli e marche. La stessa maschera buca la pelle esterna e un guscio interno rientrante: la cabina è un volume chiuso in cui si vede dentro e fuori. |
 | **Cockpit** (`src/cockpit.js`) | Cruscotto estruso, texture del pannello, sette quadranti su canvas ridisegnati solo quando il valore cambia, ghiere cromate e vetrini, due volantini che ripetono i comandi, manetta, sedili, rivestimenti e una luce d'abitacolo. |
 | **Cielo e luce** (`src/sky.js`) | Gradiente atmosferico, disco solare HDR e strato di nubi in un solo fragment shader; lo stesso shader è cotto in una mappa ambiente PMREM per i riflessi. Le ombre del sole sono agganciate ai texel della shadow map per evitare lo sfarfallio. |
-| **Terreno** (`src/world.js`) | 16 × 16 chunk da 1,6 km generati con una coda a budget (niente scatti in volo), tre LOD (64/32/16 segmenti) con gonne e normali analitiche. Un fragment shader miscela sei texture fotografiche CC0 con una texture di rumore tileable (zone, campi, sottobosco), campionamento a due scale per nascondere la ripetizione, normal map da vicino e colori medi precalcolati da lontano. Gli alberi (conifere, latifoglie, arbusti) sono istanziati per chunk con texture separate per corteccia e chioma, costruite da scansioni reali di foglie e aghi, e raggruppati da un campo di densità dei boschi. Il terreno è livellato attorno agli aeroporti. |
+| **Dati reali** (`tools/fetch-data.mjs`, `src/data.js`) | Uno script, da eseguire una volta, scarica gli AWS Terrain Tiles (quote), il Sentinel-2 cloudless 2016 di EOX (immagini) e gli elementi di OpenStreetMap via Overpass, li riproietta su una griglia metrica locale centrata sulla pista di LIAP e scrive `public/data/` (griglia di quote 2048², immagine 3072² affilata, classi di copertura 1536² e un JSON OSM). Il gioco li legge all'avvio. |
+| **Terreno** (`src/world.js`) | 24 × 24 chunk da 1,6 km su coda a budget (niente scatti in volo), tre LOD con gonne. Il fragment shader prende il colore dal satellite, aggiunge grana di luminanza dalle texture fotografiche CC0, una texture di rumore tileable a 3 scale e normal map da vicino, poi sovrappone strade, acqua, roccia sulle pendenze e neve sopra i 2.300 m. Gli alberi sono istanziati per chunk: modelli 3D vicino, sagome (impostori) più lontano. |
 | **Post-processing** (`src/postfx.js`) | EffectComposer: target HDR half-float → bloom → uscita ACES → SMAA oppure MSAA + grading. |
 | **Audio / input / i18n** | Sintesi WebAudio (`src/audio.js`), tastiera + Gamepad API (`src/controls.js`), traduzioni IT/EN basate su dizionario (`src/i18n.js`). |
 
@@ -122,6 +125,7 @@ Misurato su un portatile ibrido a 1920 × 1080 con `node tools/perf.mjs` (NVIDIA
 VolareSIM/
 ├── index.html             # struttura di HUD, aiuto e schermata di caricamento
 ├── src/
+│   ├── data.js            # caricamento di quote, copertura e OSM reali
 │   ├── main.js            # renderer, camere, ciclo di gioco, qualità adattiva
 │   ├── flight.js          # fisica di volo e a terra
 │   ├── geometry.js        # loft, profili alari, superfici portanti
@@ -136,7 +140,7 @@ VolareSIM/
 │   ├── hud.js             # HUD e orizzonte artificiale
 │   └── i18n.js            # traduzioni
 ├── electron/main.cjs      # guscio desktop (flag GPU, schermo intero)
-├── tools/                 # screenshot, profiler, benchmark FPS, test di fumo
+├── tools/                 # fetch-data (terreno reale), screenshot, profiler, benchmark FPS, test di fumo
 ├── dev/viewer.html        # visualizzatore autonomo del modello dell'aereo
 └── .github/workflows/release.yml   # compila l'installer Windows sui tag
 ```
@@ -165,5 +169,7 @@ Pubblicando un tag come `v0.5.0`, GitHub Actions compila l'installer e lo allega
 ## Crediti
 
 Ispirato a [web-flight-simulator](https://github.com/dimartarmizi/web-flight-simulator), reinterpretato per l'aviazione civile. Realizzato con [Three.js](https://threejs.org/), [Vite](https://vitejs.dev/) ed [Electron](https://www.electronjs.org/).
+
+**Dati**: immagini satellitari © [EOX IT Services GmbH](https://s2maps.eu) (Sentinel-2 cloudless 2016, CC BY 4.0, contiene dati Copernicus Sentinel modificati), quote da [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/), dati cartografici © [contributori di OpenStreetMap](https://www.openstreetmap.org/copyright) (ODbL). Le classi di copertura sono una stima automatica e non coincidono ovunque con la realtà. Vedi `public/data/CREDITS.txt`.
 
 Le texture di terreno, alberi e piste sono scansioni CC0 di [ambientCG](https://ambientcg.com): Grass 004, Grass 001, Ground 037, Ground 106, Ground 111, Rock 051, Bark 014, Leaf 001, Pine Needles 001 e Asphalt 031 (vedi `public/textures/CREDITS.txt`).

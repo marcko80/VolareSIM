@@ -2,18 +2,11 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { createSky, createEnvironment, SUN_DIR, HORIZON_COL } from './sky.js';
 import { createCessna } from './aircraft.js';
+import { DATA, loadData, sampleH, sampleClass } from './data.js';
 
-// ================================================================== aeroporti
-// heading = prua di decollo (gradi) dalla testata di partenza; elev = quota (m)
-const RAW_AIRPORTS = [
-  { id: 'A', name: 'Volare Intl', x: 0, z: 0, elev: 0, heading: 0, length: 1200, width: 30, nums: ['36', '18'] },
-  { id: 'B', name: 'Monte Alto', x: 4200, z: -7500, elev: 90, heading: 60, length: 900, width: 25, nums: ['06', '24'] },
-];
-
-export const AIRPORTS = RAW_AIRPORTS.map((a) => {
-  const th = (-a.heading * Math.PI) / 180; // rotazione attorno a Y
-  return { ...a, th, c: Math.cos(th), s: Math.sin(th) };
-});
+// ================================================================== aeroporti (da OpenStreetMap)
+/** riempito da createWorld(); main.js tiene il riferimento all'array */
+export const AIRPORTS = [];
 
 export function localToWorld(a, lx, lz) {
   return { x: a.x + lx * a.c + lz * a.s, z: a.z - lx * a.s + lz * a.c };
@@ -28,7 +21,7 @@ export function spawnFor(a) {
 }
 function flatDist(a, x, z) {
   const [lx, lz] = worldToLocal(a, x, z);
-  return Math.hypot(Math.max(Math.abs(lx) - 60, 0), Math.max(Math.abs(lz) - a.length / 2 - 100, 0));
+  return Math.hypot(Math.max(Math.abs(lx) - 45, 0), Math.max(Math.abs(lz) - a.length / 2 - 70, 0));
 }
 export function airportDist(x, z) {
   let d = Infinity;
@@ -43,10 +36,30 @@ export function isOnRunway(x, z) {
   return false;
 }
 
-// ================================================================== terreno (funzioni analitiche)
+function defineAirport(list, id, name) {
+  const rw = list.find((e) => e.t.aeroway === 'runway');
+  const p = rw.p, a = p[0], b = p[p.length - 1];
+  const cx = (a[0] + b[0]) / 2, cz = (a[1] + b[1]) / 2, dx = b[0] - a[0], dz = b[1] - a[1];
+  const brg = ((Math.atan2(dx, -dz) * 180) / Math.PI + 360) % 360;
+  const ref = (rw.t.ref || '18/36').split('/').map((s) => parseInt(s, 10));
+  // testata di decollo: la prua più vicina a una delle designazioni della pista
+  let best = null;
+  for (const h of [brg, (brg + 180) % 360]) for (const rf of ref) {
+    const diff = Math.abs((((h - rf * 10 + 540) % 360)) - 180);
+    if (!best || diff < best.diff) best = { h, rf, diff };
+  }
+  const other = ref.find((r) => r !== best.rf) ?? (best.rf + 18) % 36;
+  const th = (-best.h * Math.PI) / 180;
+  return {
+    id, name, x: cx, z: cz, elev: 0, heading: best.h, length: Math.hypot(dx, dz), width: parseFloat(rw.t.width) || 25,
+    surface: rw.t.surface || 'asphalt', nums: [String(best.rf).padStart(2, '0'), String(other).padStart(2, '0')],
+    th, c: Math.cos(th), s: Math.sin(th), osm: list,
+  };
+}
+
+// ================================================================== terreno (da dati reali)
 const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const lerp = (a, b, t) => a + (b - a) * t;
-
 function mulberry32(seed) {
   return function () {
     seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
@@ -67,25 +80,20 @@ function vnoise(x, z) {
 }
 
 export function terrainHeight(x, z) {
-  let h = 90 * (0.5 + 0.5 * Math.sin(x * 0.0011 + Math.sin(z * 0.0007) * 2.0));
-  h += 60 * Math.sin(x * 0.0031 + 1.3) * Math.sin(z * 0.0027);
-  h += 22 * Math.sin(x * 0.009 + z * 0.007);
-  h += 8 * Math.sin(x * 0.03) * Math.sin(z * 0.027);
-  // rilievo più minuto e irregolare: colline secondarie, dossi e valli (niente "dune" lisce)
-  h += 15 * (vnoise(x * 0.0021, z * 0.0021) - 0.5) * 2;
-  h += 7 * (vnoise(x * 0.0058 + 40, z * 0.0058 - 17) - 0.5) * 2;
-  h = Math.max(0, h);
+  // la griglia reale ha celle di ~18 m: un po' di rugosità fine aggiunge naturalezza
+  let h = sampleH(x, z) + 1.3 * (vnoise(x * 0.012, z * 0.012) - 0.5) * 2;
   for (const a of AIRPORTS) {
-    const w = smoothstep(250, 1700, flatDist(a, x, z));
+    const w = smoothstep(90, 480, flatDist(a, x, z));
     if (w < 1) h = a.elev + (h - a.elev) * w;
   }
   return h;
 }
 
-/** densità di bosco 0..1 (macchie di foresta) */
+/** densità di bosco 0..1 dalle classi di copertura, con radure naturali */
 export function forestDensity(x, z) {
-  const n = 0.6 * vnoise(x * 0.0012, z * 0.0012) + 0.3 * vnoise(x * 0.0035 + 7, z * 0.0035) + 0.1 * vnoise(x * 0.01, z * 0.01);
-  return smoothstep(0.45, 0.6, n);
+  const c = sampleClass(x, z);
+  const n = vnoise(x * 0.008, z * 0.008) * 0.6 + vnoise(x * 0.03 + 5, z * 0.03) * 0.4;
+  return Math.max(0, Math.min(1, c.forest * 1.25 - (1 - n) * 0.35)) * (1 - c.urban) * (1 - c.water) * (1 - Math.min(1, c.rock * 1.3));
 }
 
 // ================================================================== texture
@@ -94,27 +102,25 @@ const loadImage = (name) => new Promise((res, rej) => {
   const i = new Image();
   i.onload = () => res(i);
   i.onerror = () => rej(new Error('texture mancante: ' + name));
-  i.src = `${BASE}textures/${name}`;
+  i.src = `${BASE}${name}`;
 });
 
-/** carica le texture CC0 (ambientCG) e prepara quelle derivate per gli alberi */
+/** carica le texture CC0 (ambientCG) e prepara quelle derivate; più immagine satellitare, classi e strade */
 async function loadAssets(renderer) {
   const aniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   const names = ['grass', 'meadow', 'forest', 'soil', 'dirt', 'rock', 'bark', 'asphalt'];
-  const imgs = await Promise.all([...names.map((n) => loadImage(n + '.jpg')), loadImage('grass_n.jpg'), loadImage('rock_n.jpg'), loadImage('leaf.jpg'), loadImage('leaf_a.jpg'), loadImage('needles_a.jpg')]);
+  const imgs = await Promise.all([...names.map((n) => loadImage(`textures/${n}.jpg`)), loadImage('textures/grass_n.jpg'), loadImage('textures/rock_n.jpg'), loadImage('textures/leaf.jpg'), loadImage('textures/leaf_a.jpg'), loadImage('textures/needles_a.jpg'), loadImage('data/imagery.jpg')]);
   const by = Object.fromEntries(names.map((n, i) => [n, imgs[i]]));
-  const [grassN, rockN, leaf, leafA, needlesA] = imgs.slice(names.length);
+  const [grassN, rockN, leaf, leafA, needlesA, imagery] = imgs.slice(names.length);
   const tex = (img, srgb = true) => {
     const t = new THREE.Texture(img);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     t.anisotropy = aniso;
-    t.generateMipmaps = true;
     t.needsUpdate = true;
     return t;
   };
   const T = Object.fromEntries(names.map((n) => [n, tex(by[n])]));
-  // colore medio (lineare) di ogni texture: da lontano si usa questo invece di campionare
   T.avg = {};
   for (const n of names) {
     const c = document.createElement('canvas');
@@ -124,16 +130,17 @@ async function loadAssets(renderer) {
     const d = g.getImageData(0, 0, 1, 1).data;
     T.avg[n] = new THREE.Vector3(...[d[0], d[1], d[2]].map((v) => Math.pow(v / 255, 2.2)));
   }
+  // rumore tileable a 4 canali: ricrea ciuffi e variazioni a 1–40 m che i mipmap delle texture cancellano
   {
     const N = 256, data = new Uint8Array(N * N * 4);
     for (let ch = 0; ch < 4; ch++) {
       const rnd = mulberry32(1000 + ch * 77);
-      const oct = [8, 16, 32, 64].map((cells) => {
+      const oct = [4, 8, 16, 32].map((cells) => {
         const g = new Float32Array(cells * cells);
         for (let i = 0; i < g.length; i++) g[i] = rnd();
         return { cells, g };
       });
-      const wts = [0.5, 0.27, 0.15, 0.08];
+      const wts = [0.38, 0.3, 0.22, 0.10];
       for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
         let v = 0;
         oct.forEach(({ cells, g }, k) => {
@@ -158,7 +165,52 @@ async function loadAssets(renderer) {
   T.grassN = tex(grassN, false);
   T.rockN = tex(rockN, false);
 
-  // immagine con canale alfa da due JPG (colore + opacità)
+  // immagine satellitare Sentinel-2 (riga 0 = nord = v 0)
+  T.imagery = new THREE.Texture(imagery);
+  T.imagery.colorSpace = THREE.SRGBColorSpace;
+  T.imagery.flipY = false;
+  T.imagery.wrapS = T.imagery.wrapT = THREE.ClampToEdgeWrapping;
+  T.imagery.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  T.imagery.needsUpdate = true;
+
+  // classi di copertura (R bosco, G urbano, B roccia, A acqua)
+  T.classes = new THREE.DataTexture(DATA.cls, DATA.CN, DATA.CN, THREE.RGBAFormat);
+  T.classes.minFilter = T.classes.magFilter = THREE.LinearFilter;
+  T.classes.wrapS = T.classes.wrapT = THREE.ClampToEdgeWrapping;
+  T.classes.needsUpdate = true;
+
+  // strade (R) e acque (G) rasterizzate da OpenStreetMap
+  {
+    const N = 3072, { x0, x1, z0, z1 } = DATA.ext;
+    const c = document.createElement('canvas');
+    c.width = c.height = N;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.fillStyle = '#000'; g.fillRect(0, 0, N, N);
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    const px = (p) => [((p[0] - x0) / (x1 - x0)) * N, ((p[1] - z0) / (z1 - z0)) * N];
+    const mpp = (x1 - x0) / N;
+    const W = { motorway: 11, trunk: 9, primary: 7, secondary: 5.5, tertiary: 4 };
+    const stroke = (pts, color, width) => {
+      g.strokeStyle = color; g.lineWidth = Math.max(0.8, width / mpp);
+      g.beginPath();
+      pts.forEach((p, i) => { const [a, b] = px(p); if (i) g.lineTo(a, b); else g.moveTo(a, b); });
+      g.stroke();
+    };
+    for (const r of DATA.osm.water) {
+      if (r.k === 'lake') { g.fillStyle = '#0f0'; g.beginPath(); r.p.forEach((p, i) => { const [a, b] = px(p); if (i) g.lineTo(a, b); else g.moveTo(a, b); }); g.closePath(); g.fill(); }
+      else stroke(r.p, '#0f0', 12);
+    }
+    for (const r of DATA.osm.roads) stroke(r.p, '#f00', W[r.k] || 6);
+    const id = g.getImageData(0, 0, N, N).data;
+    const rg = new Uint8Array(N * N * 2);
+    for (let i = 0; i < N * N; i++) { rg[i * 2] = id[i * 4]; rg[i * 2 + 1] = id[i * 4 + 1]; }
+    T.roads = new THREE.DataTexture(rg, N, N, THREE.RGFormat);
+    T.roads.minFilter = THREE.LinearMipmapLinearFilter; T.roads.magFilter = THREE.LinearFilter;
+    T.roads.generateMipmaps = true;
+    T.roads.wrapS = T.roads.wrapT = THREE.ClampToEdgeWrapping;
+    T.roads.needsUpdate = true;
+  }
+
   const withAlpha = (colorImg, alphaImg, rgb) => {
     const c = document.createElement('canvas');
     c.width = alphaImg.width; c.height = alphaImg.height;
@@ -177,7 +229,6 @@ async function loadAssets(renderer) {
     g.putImageData(id, 0, 0);
     return c;
   };
-  // mattonella di chioma: foglie vere (Leaf001) o aghi (PineNeedles001) sparsi su una base scura
   const foliageTile = (stamp, base, count, scaleRange, seed, tints) => {
     const S = 512;
     const c = document.createElement('canvas');
@@ -191,9 +242,9 @@ async function loadAssets(renderer) {
       const tint = tints[Math.floor(rnd() * tints.length)];
       g.filter = `brightness(${0.55 + rnd() * 0.6}) hue-rotate(${(rnd() - 0.5) * 24}deg) ${tint}`;
       for (const dx of [-S, 0, S]) for (const dy of [-S, 0, S]) {
-        const px = x + dx, py = y + dy;
-        if (px < -120 || px > S + 120 || py < -120 || py > S + 120) continue;
-        g.save(); g.translate(px, py); g.rotate(rot); g.scale(sc, sc);
+        const px2 = x + dx, py = y + dy;
+        if (px2 < -120 || px2 > S + 120 || py < -120 || py > S + 120) continue;
+        g.save(); g.translate(px2, py); g.rotate(rot); g.scale(sc, sc);
         g.drawImage(stamp, -stamp.width / 2, -stamp.height / 2);
         g.restore();
       }
@@ -216,30 +267,46 @@ function makeRunwayTexture(a) {
   const sx = W / Wd, sy = H / L;
   const mx = (m) => (m + Wd / 2) * sx;
   const mz = (m) => (m + L / 2) * sy;
+  const grass = a.surface === 'grass';
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const g = c.getContext('2d');
-  g.fillStyle = '#3b3c40';
+  g.fillStyle = grass ? '#6a8240' : '#3b3c40';
   g.fillRect(0, 0, W, H);
-  // segni di gomma nella zona di contatto (più scuri dell'asfalto di base)
-  g.fillStyle = 'rgba(8,8,10,0.55)';
-  for (const end of [-1, 1]) for (const off of [-3, 3]) g.fillRect(mx(off - 1), mz(end * (L / 2 - 250) - 50), 2 * sx, 100 * sy);
-  g.fillStyle = '#ececec';
-  g.fillRect(mx(-Wd / 2 + 0.8), 0, 0.4 * sx, H);
-  g.fillRect(mx(Wd / 2 - 1.2), 0, 0.4 * sx, H);
-  for (let z = -L / 2 + 70; z < L / 2 - 70; z += 40) g.fillRect(mx(-0.3), mz(z), 0.6 * sx, 20 * sy);
-  for (const end of [-1, 1]) {
-    for (let i = -6; i <= 6; i++) {
-      if (i === 0) continue;
-      const z0 = end < 0 ? -L / 2 + 8 : L / 2 - 8 - 28;
-      g.fillRect(mx(i * (Wd / 16) - 0.45), mz(z0), 0.9 * sx, 28 * sy);
+  if (grass) {
+    // pista in erba: strisce di taglio e testate segnate
+    // erba tagliata: macchie morbide di tono diverso + fili sottili
+    for (let i = 0; i < 520; i++) {
+      const x = Math.random() * W, y = Math.random() * H, r = 18 + Math.random() * 55, dark = Math.random() > 0.5;
+      const grd = g.createRadialGradient(x, y, 0, x, y, r);
+      grd.addColorStop(0, dark ? 'rgba(40,64,28,0.20)' : 'rgba(150,165,80,0.16)');
+      grd.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = grd; g.fillRect(x - r, y - r, 2 * r, 2 * r);
     }
-    for (const z of [L / 2 - 240, L / 2 - 300]) for (const sgn of [-1, 1]) g.fillRect(mx(sgn * 4.5 - 1.1), mz(end * z - 10), 2.2 * sx, 20 * sy);
+    for (let i = 0; i < 9000; i++) { g.fillStyle = `rgba(${60 + Math.random() * 80},${80 + Math.random() * 60},${35 + Math.random() * 25},0.16)`; g.fillRect(Math.random() * W, Math.random() * H, 1 + Math.random() * 5, 1 + Math.random() * 3); }
+    g.fillStyle = '#f2f2ee';
+    g.fillRect(0, mz(L / 2 - 12), W, 3 * sy); g.fillRect(0, mz(-L / 2 + 9), W, 3 * sy);
+  } else {
+    g.fillStyle = 'rgba(8,8,10,0.55)';
+    for (const end of [-1, 1]) for (const off of [-3, 3]) g.fillRect(mx(off - 1), mz(end * (L / 2 - 250) - 50), 2 * sx, 100 * sy);
+    g.fillStyle = '#ececec';
+    g.fillRect(mx(-Wd / 2 + 0.8), 0, 0.4 * sx, H);
+    g.fillRect(mx(Wd / 2 - 1.2), 0, 0.4 * sx, H);
+    for (let z = -L / 2 + 70; z < L / 2 - 70; z += 40) g.fillRect(mx(-0.3), mz(z), 0.6 * sx, 20 * sy);
+    for (const end of [-1, 1]) {
+      for (let i = -6; i <= 6; i++) {
+        if (i === 0) continue;
+        const z0 = end < 0 ? -L / 2 + 8 : L / 2 - 8 - 28;
+        g.fillRect(mx(i * (Wd / 16) - 0.45), mz(z0), 0.9 * sx, 28 * sy);
+      }
+      for (const z of [L / 2 - 240, L / 2 - 300]) for (const sgn of [-1, 1]) g.fillRect(mx(sgn * 4.5 - 1.1), mz(end * z - 10), 2.2 * sx, 20 * sy);
+    }
   }
+  g.fillStyle = grass ? '#f2f2ee' : '#ececec';
   g.font = `bold ${Math.round(9 * sx)}px Arial`;
   g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.save(); g.translate(mx(0), mz(L / 2 - 50)); g.scale(1, sy / sx); g.fillText(a.nums[0], 0, 0); g.restore();
-  g.save(); g.translate(mx(0), mz(-L / 2 + 50)); g.rotate(Math.PI); g.scale(1, sy / sx); g.fillText(a.nums[1], 0, 0); g.restore();
+  g.save(); g.translate(mx(0), mz(L / 2 - (grass ? 40 : 50))); g.scale(1, sy / sx); g.fillText(a.nums[0], 0, 0); g.restore();
+  g.save(); g.translate(mx(0), mz(-L / 2 + (grass ? 40 : 50))); g.rotate(Math.PI); g.scale(1, sy / sx); g.fillText(a.nums[1], 0, 0); g.restore();
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 16;
@@ -247,10 +314,11 @@ function makeRunwayTexture(a) {
 }
 
 /** asfalto reale: la texture dei segni mantiene i colori chiari, il resto prende il grano dell'asfalto */
-function asphaltMaterial(assets, { map = null, rw, rl, color = 0xffffff, tint = 1 }) {
+function asphaltMaterial(assets, { map = null, rw, rl, color = 0xffffff, tint = 1, grass = false }) {
   const m = new THREE.MeshStandardMaterial({
     map, color, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6,
   });
+  if (grass) return m;
   m.onBeforeCompile = (shader) => {
     shader.uniforms.tAsphalt = { value: assets.asphalt };
     shader.vertexShader = shader.vertexShader
@@ -283,60 +351,134 @@ function facadeTexture(rows, cols, wall = '#d9d6cc', glass = '#2b4258') {
   return t;
 }
 
-// ================================================================== aeroporto
-function buildAirport(scene, a, assets) {
+// ================================================================== aeroporto reale
+const CLOSED = (pts) => pts.length > 2 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < 0.5;
+
+function buildAirport(scene, a, assets, terrainFn) {
   const g = new THREE.Group();
   g.position.set(a.x, a.elev, a.z);
   g.rotation.y = a.th;
   scene.add(g);
   const L = a.length;
+  const grassStrip = a.surface === 'grass';
   const std = (color, rough = 0.8, metal = 0) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
+  const loc = (p) => worldToLocal(a, p[0], p[1]);
 
   const runway = new THREE.Mesh(
     new THREE.PlaneGeometry(a.width, L).rotateX(-Math.PI / 2),
-    asphaltMaterial(assets, { map: makeRunwayTexture(a), rw: a.width / 2.2, rl: L / 2.2, tint: 0.62 }));
+    asphaltMaterial(assets, { map: makeRunwayTexture(a), rw: a.width / 2.2, rl: L / 2.2, tint: 0.62, grass: grassStrip }));
   runway.position.y = 0.1;
   runway.receiveShadow = true;
   g.add(runway);
 
-  // luci (emissive: il bloom le fa brillare)
-  const lampMat = new THREE.MeshStandardMaterial({ color: 0xffeeb0, emissive: 0xffe9a0, emissiveIntensity: 3 });
-  const n = Math.floor(L / 60) + 1;
-  const lights = new THREE.InstancedMesh(new THREE.SphereGeometry(0.3, 8, 6), lampMat, n * 2);
-  const m4 = new THREE.Matrix4();
-  let li = 0;
-  for (let i = 0; i < n; i++) for (const x of [-a.width / 2 - 1.5, a.width / 2 + 1.5]) { m4.setPosition(x, 0.3, -L / 2 + i * 60); lights.setMatrixAt(li++, m4); }
-  g.add(lights);
-  for (const [z, col] of [[L / 2 + 3, 0x30ff60], [-L / 2 - 3, 0xff3030]]) {
-    const mat = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 3 });
-    const th = new THREE.InstancedMesh(new THREE.SphereGeometry(0.35, 8, 6), mat, 9);
-    for (let i = -4; i <= 4; i++) { m4.setPosition(i * (a.width / 8), 0.3, z); th.setMatrixAt(i + 4, m4); }
-    g.add(th);
-  }
-  for (let i = 0; i < 4; i++) {
-    const col = i < 2 ? 0xff3a2a : 0xfff4e0;
-    const p = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 1.2), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 2.5 }));
-    p.position.set(-a.width / 2 - 12 - i * 9, 0.4, L / 2 - 300);
-    g.add(p);
+  // luci di pista (emissive: il bloom le fa brillare)
+  if (!grassStrip) {
+    const lampMat = new THREE.MeshStandardMaterial({ color: 0xffeeb0, emissive: 0xffe9a0, emissiveIntensity: 3 });
+    const n = Math.floor(L / 60) + 1;
+    const lights = new THREE.InstancedMesh(new THREE.SphereGeometry(0.3, 8, 6), lampMat, n * 2);
+    const m4 = new THREE.Matrix4();
+    let li = 0;
+    for (let i = 0; i < n; i++) for (const x of [-a.width / 2 - 1.5, a.width / 2 + 1.5]) { m4.setPosition(x, 0.3, -L / 2 + i * 60); lights.setMatrixAt(li++, m4); }
+    g.add(lights);
+    for (const [z, col] of [[L / 2 + 3, 0x30ff60], [-L / 2 - 3, 0xff3030]]) {
+      const mat = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 3 });
+      const th = new THREE.InstancedMesh(new THREE.SphereGeometry(0.35, 8, 6), mat, 9);
+      for (let i = -4; i <= 4; i++) { m4.setPosition(i * (a.width / 8), 0.3, z); th.setMatrixAt(i + 4, m4); }
+      g.add(th);
+    }
+    for (let i = 0; i < 4; i++) {
+      const col = i < 2 ? 0xff3a2a : 0xfff4e0;
+      const p = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 1.2), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 2.5 }));
+      p.position.set(-a.width / 2 - 12 - i * 9, 0.4, L / 2 - 300);
+      g.add(p);
+    }
+  } else {
+    // aviosuperficie: coni bianchi alle testate
+    for (const z of [L / 2 + 6, -L / 2 - 6]) for (const x of [-a.width / 2 - 2, a.width / 2 + 2]) {
+      const c = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.9, 8), std(0xff7a2a, 0.7));
+      c.position.set(x, 0.45, z);
+      g.add(c);
+    }
   }
 
-  // piazzale, raccordo e segnaletica
-  const apron = new THREE.Mesh(new THREE.PlaneGeometry(90, 120).rotateX(-Math.PI / 2), asphaltMaterial(assets, { rw: 40, rl: 54, tint: 0.9 }));
-  apron.position.set(68, 0.06, L * 0.1);
-  apron.receiveShadow = true;
-  g.add(apron);
-  const taxi = new THREE.Mesh(new THREE.PlaneGeometry(40, 12).rotateX(-Math.PI / 2), asphaltMaterial(assets, { rw: 18, rl: 5.4, tint: 0.9 }));
-  taxi.position.set(a.width / 2 + 20, 0.06, L * 0.1);
-  taxi.receiveShadow = true;
-  g.add(taxi);
-  const yellow = new THREE.MeshStandardMaterial({ color: 0xe8c020, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 });
-  const line = new THREE.Mesh(new THREE.PlaneGeometry(40, 0.25).rotateX(-Math.PI / 2), yellow);
-  line.position.set(a.width / 2 + 20, 0.12, L * 0.1);
-  g.add(line);
-  const line2 = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 70).rotateX(-Math.PI / 2), yellow);
-  line2.position.set(58, 0.12, L * 0.1 + 10);
-  g.add(line2);
+  // raccordi e piazzali veri (OpenStreetMap)
+  const apronMat = asphaltMaterial(assets, { rw: 30, rl: 30, tint: 0.9 });
+  const aprons = [];
+  for (const e of a.osm) {
+    if (e.t.aeroway === 'taxiway' && e.p.length > 1) {
+      const wd = parseFloat(e.t.width) || 14, pts = e.p.map(loc);
+      const pos = [], idx = [], uv = [];
+      for (let i = 0; i < pts.length; i++) {
+        const p0 = pts[Math.max(0, i - 1)], p1 = pts[Math.min(pts.length - 1, i + 1)];
+        let dx = p1[0] - p0[0], dz = p1[1] - p0[1];
+        const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+        pos.push(pts[i][0] - dz * wd / 2, 0.07, pts[i][1] + dx * wd / 2, pts[i][0] + dz * wd / 2, 0.07, pts[i][1] - dx * wd / 2);
+        uv.push(0, i * 0.5, 1, i * 0.5);
+        if (i) { const k = i * 2; idx.push(k - 2, k, k - 1, k - 1, k, k + 1); }
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      geo.setIndex(idx);
+      geo.computeVertexNormals();
+      if (geo.attributes.normal.getY(0) < 0) geo.setIndex(idx.map((v, i2) => idx[i2 - (i2 % 3) + [0, 2, 1][i2 % 3]]));
+      geo.computeVertexNormals();
+      const m = new THREE.Mesh(geo, apronMat);
+      m.receiveShadow = true;
+      g.add(m);
+    } else if (e.t.aeroway === 'apron' && CLOSED(e.p)) {
+      const shape = new THREE.Shape(e.p.map((p) => { const [lx, lz] = loc(p); return new THREE.Vector2(lx, -lz); }));
+      const geo = new THREE.ShapeGeometry(shape);
+      geo.rotateX(-Math.PI / 2);
+      geo.translate(0, 0.06, 0);
+      const uv = geo.attributes.uv; const pp = geo.attributes.position;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, pp.getX(i) / 30, pp.getZ(i) / 30);
+      const m = new THREE.Mesh(geo, apronMat);
+      m.receiveShadow = true;
+      g.add(m);
+      aprons.push(e.p);
+    }
+  }
 
+  // edifici veri: impronte estruse alla quota del terreno
+  const wallGeos = [];
+  const rnd = mulberry32(a.id.charCodeAt(0) * 31);
+  const tints = [[0.9, 0.86, 0.78], [0.85, 0.8, 0.72], [0.92, 0.9, 0.86], [0.78, 0.72, 0.64], [0.88, 0.8, 0.7]];
+  for (const e of a.osm) {
+    const isAero = e.t.aeroway === 'terminal' || e.t.aeroway === 'hangar';
+    if (!(isAero || e.t.building) || !CLOSED(e.p)) continue;
+    let cx = 0, cz = 0;
+    for (const p of e.p) { cx += p[0]; cz += p[1]; }
+    cx /= e.p.length; cz /= e.p.length;
+    const hGround = terrainFn(cx, cz);
+    const levels = parseFloat(e.t['building:levels']);
+    const h = e.t.aeroway === 'terminal' ? 11 : e.t.aeroway === 'hangar' || e.t.building === 'hangar' ? 10 : (levels ? levels * 3.1 : 5 + rnd() * 3);
+    const shape = new THREE.Shape(e.p.slice(0, -1).map((p) => new THREE.Vector2(p[0], -p[1])));
+    let geo;
+    try { geo = new THREE.ExtrudeGeometry(shape, { depth: h + 1.5, bevelEnabled: false }); } catch { continue; }
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(0, hGround - 1.5, 0);
+    geo.deleteAttribute('uv');
+    const t = tints[Math.floor(rnd() * tints.length)];
+    const k = e.t.aeroway === 'hangar' || e.t.building === 'hangar' || e.t.building === 'industrial' ? [0.62, 0.66, 0.7] : t;
+    const col = [];
+    for (let i = 0; i < geo.attributes.position.count; i++) col.push(k[0], k[1], k[2]);
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    wallGeos.push(geo.index ? geo.toNonIndexed() : geo);
+  }
+  if (wallGeos.length) {
+    // coordinate già in assi mondo: la mesh va nella scena, non nel gruppo ruotato dell'aeroporto
+    const merged = mergeGeometries(wallGeos, true);
+    if (merged) {
+      const roof = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0xb24a36, roughness: 0.85 });
+      const wall = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
+      const bm = new THREE.Mesh(merged, [roof, wall]);
+      bm.castShadow = bm.receiveShadow = true;
+      scene.add(bm);
+    }
+  }
+
+  // manica a vento
   const addMesh = (geo, mat, x, y, z, ry = 0) => {
     const m = new THREE.Mesh(geo, mat);
     m.position.set(x, y, z); m.rotation.y = ry;
@@ -344,49 +486,32 @@ function buildAirport(scene, a, assets) {
     g.add(m);
     return m;
   };
-  const fz = L * 0.06;
-  const termMats = [std(0xcfcbc0), std(0xcfcbc0), std(0x555a63), std(0x555a63), new THREE.MeshStandardMaterial({ map: facadeTexture(2, 9), roughness: 0.35, metalness: 0.2 }), new THREE.MeshStandardMaterial({ map: facadeTexture(2, 9), roughness: 0.35, metalness: 0.2 })];
-  addMesh(new THREE.BoxGeometry(44, 9, 17), termMats, 114, 4.5, fz);
-  addMesh(new THREE.BoxGeometry(48, 0.8, 21), std(0x39414d, 0.6), 114, 9.4, fz);
-  addMesh(new THREE.BoxGeometry(14, 3.2, 3), std(0xc9d4e0, 0.3, 0.3), 92.5, 3.4, fz);
-  const hw = 24, hh = 5, hl = 32;
-  const hs = new THREE.Shape();
-  hs.moveTo(-hw / 2, 0); hs.lineTo(hw / 2, 0); hs.lineTo(hw / 2, hh); hs.absarc(0, hh, hw / 2, 0, Math.PI, false); hs.lineTo(-hw / 2, 0);
-  const hGeo = new THREE.ExtrudeGeometry(hs, { depth: hl, bevelEnabled: false });
-  hGeo.translate(0, 0, -hl / 2);
-  addMesh(hGeo, std(0x9aa3ad, 0.5, 0.55), 112, 0, L * 0.14);
-  addMesh(new THREE.BoxGeometry(18, 7, 0.4), std(0x4a5560, 0.6, 0.3), 112, 3.5, L * 0.14 + hl / 2 + 0.1);
-  addMesh(new THREE.CylinderGeometry(2.1, 2.7, 18, 16), std(0xe6e6e2, 0.7), 98, 9, -L * 0.02);
-  addMesh(new THREE.CylinderGeometry(4.2, 3.4, 3.6, 16), new THREE.MeshStandardMaterial({ color: 0x1e3040, roughness: 0.08, metalness: 0.6, envMapIntensity: 1.6 }), 98, 19.8, -L * 0.02);
-  addMesh(new THREE.CylinderGeometry(4.6, 4.6, 0.5, 16), std(0xe6e6e2), 98, 21.8, -L * 0.02);
-  addMesh(new THREE.CylinderGeometry(0.08, 0.08, 6, 6), std(0x888888, 0.4, 0.8), 98, 25, -L * 0.02);
-  const redLamp = addMesh(new THREE.SphereGeometry(0.3, 8, 6), new THREE.MeshStandardMaterial({ color: 0xff2010, emissive: 0xff2010, emissiveIntensity: 4 }), 98, 28.2, -L * 0.02);
-  redLamp.castShadow = false;
-  for (const dz of [-8, 8]) addMesh(new THREE.CylinderGeometry(3, 3, 7, 18), std(0xd6d4cb, 0.65, 0.1), 92, 3.5, L * 0.28 + dz);
-  for (let i = 0; i < 4; i++) {
-    const x = 36 + i * 22;
-    addMesh(new THREE.CylinderGeometry(0.1, 0.12, 9, 6), std(0x777b82, 0.5, 0.7), x, 4.5, L * 0.1 + 38);
-    const lamp = addMesh(new THREE.BoxGeometry(1.2, 0.2, 0.5), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff2cc, emissiveIntensity: 2 }), x, 9.1, L * 0.1 + 38);
-    lamp.castShadow = false;
-  }
   addMesh(new THREE.CylinderGeometry(0.1, 0.12, 7, 6), std(0xdddddd, 0.5, 0.5), -40, 3.5, -L * 0.2);
   const sock = addMesh(new THREE.ConeGeometry(0.7, 3.5, 12, 1, true), new THREE.MeshStandardMaterial({ color: 0xff7a2a, roughness: 0.8, side: THREE.DoubleSide }), -38.5, 7, -L * 0.2);
   sock.rotation.z = -Math.PI / 2 - 0.2;
 
-  const parkYaw = [0.25, -0.3, 0.1];
-  for (let i = 0; i < 3; i++) {
-    const p = createCessna();
-    p.group.position.set(48 + i * 16, 1.25, L * 0.1 - 22 + (i % 2) * 8);
-    p.group.rotation.y = parkYaw[i] + Math.PI * 0.5;
-    g.add(p.group);
-    p.animate({ pitch: 0, roll: 0, rudder: 0, flapDeg: 0, time: 0, rpmNorm: 0 });
+  // aerei parcheggiati sul piazzale più grande
+  if (aprons.length) {
+    let big = aprons[0], bs = 0;
+    for (const p of aprons) { const xs = p.map((q) => q[0]), zs = p.map((q) => q[1]); const s = (Math.max(...xs) - Math.min(...xs)) * (Math.max(...zs) - Math.min(...zs)); if (s > bs) { bs = s; big = p; } }
+    let cx = 0, cz = 0;
+    for (const p of big) { cx += p[0]; cz += p[1]; }
+    const [lx, lz] = loc([cx / big.length, cz / big.length]);
+    const yaws = [0.25, -0.3, 0.1];
+    for (let i = 0; i < 3; i++) {
+      const p = createCessna();
+      p.group.position.set(lx + (i - 1) * 14, 1.25, lz + (i % 2) * 7);
+      p.group.rotation.y = yaws[i] + Math.PI * 0.5;
+      g.add(p.group);
+      p.animate({ pitch: 0, roll: 0, rudder: 0, flapDeg: 0, time: 0, rpmNorm: 0 });
+    }
   }
 
   const beam = new THREE.Mesh(
     new THREE.CylinderGeometry(2.2, 3.5, 420, 14, 1, true),
     new THREE.MeshBasicMaterial({ color: 0xffb030, transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })
   );
-  beam.position.set(98, 210, -L * 0.02);
+  beam.position.set(60, 210, -L * 0.1);
   g.add(beam);
 }
 
@@ -416,7 +541,6 @@ function jitter(geo, amt, seed) {
 }
 const flat = (list) => mergeGeometries(list.map((g) => (g.index ? g.toNonIndexed() : g)));
 
-/** tronco e chioma separati: ogni parte ha la sua texture (corteccia, foglie, aghi) */
 function makeTreeGeometries() {
   const white = () => [1, 1, 1];
   const trunkC = scaleUV(colorize(new THREE.CylinderGeometry(0.22, 0.36, 3.4, 8).translate(0, 1.7, 0), white), 1, 1.2);
@@ -429,14 +553,63 @@ function makeTreeGeometries() {
   return { conTrunk: trunkC, conFoliage: flat(tiers), broadTrunk: trunkB, broadFoliage: flat(blobs), shrubFoliage: shrub };
 }
 
+/** sagome (impostori) degli alberi: il modello 3D viene "fotografato" una volta in una texture */
+function makeImpostors(renderer, treeGeos, treeMats) {
+  const specs = {
+    conifer: { parts: [['conTrunk', 'bark'], ['conFoliage', 'needles']], w: 7.2, h: 13.5 },
+    broad: { parts: [['broadTrunk', 'bark'], ['broadFoliage', 'leaves']], w: 11.5, h: 12.2 },
+    shrub: { parts: [['shrubFoliage', 'leaves']], w: 3.6, h: 2.8 },
+  };
+  const scene = new THREE.Scene();
+  scene.add(new THREE.AmbientLight(0xffffff, 1.6));
+  const d = new THREE.DirectionalLight(0xfff4e8, 2.4);
+  d.position.set(2, 4, 3);
+  scene.add(d);
+  const out = {};
+  const prevT = renderer.getRenderTarget();
+  const prevC = renderer.getClearColor(new THREE.Color()), prevA = renderer.getClearAlpha();
+  for (const [name, s] of Object.entries(specs)) {
+    const W = 128, H = Math.round(128 * (s.h / s.w));
+    const rt = new THREE.WebGLRenderTarget(W, Math.max(64, H), { samples: 4 });
+    const g = new THREE.Group();
+    for (const [gn, mn] of s.parts) g.add(new THREE.Mesh(treeGeos[gn], treeMats[mn]));
+    scene.add(g);
+    const cam = new THREE.OrthographicCamera(-s.w / 2, s.w / 2, s.h, 0, 0.1, 50);
+    cam.position.set(0, 0, 20);
+    renderer.setRenderTarget(rt);
+    renderer.setClearColor(0x000000, 0);
+    renderer.clear();
+    renderer.render(scene, cam);
+    scene.remove(g);
+    out[name] = { map: rt.texture, w: s.w, h: s.h };
+  }
+  renderer.setRenderTarget(prevT);
+  renderer.setClearColor(prevC, prevA);
+  // due quadrati incrociati
+  for (const s of Object.values(out)) {
+    const a = new THREE.PlaneGeometry(s.w, s.h).translate(0, s.h / 2, 0);
+    const b = new THREE.PlaneGeometry(s.w, s.h).translate(0, s.h / 2, 0).rotateY(Math.PI / 2);
+    s.geo = mergeGeometries([a, b]);
+    s.mat = new THREE.MeshBasicMaterial({ map: s.map, alphaTest: 0.45, side: THREE.DoubleSide, fog: true });
+  }
+  return out;
+}
+
 // ================================================================== mondo
-const CHUNK = 1600, HALF = 12800, NCH = (HALF * 2) / CHUNK;
+const CHUNK = 1600;
 
 export async function createWorld(scene, renderer) {
   scene.fog = new THREE.FogExp2(HORIZON_COL.clone(), 0.000085);
   scene.background = HORIZON_COL.clone();
   scene.environment = createEnvironment(renderer);
   scene.environmentIntensity = 0.6;
+
+  await loadData();
+  const ext = DATA.ext;
+  // aeroporti reali: L'Aquila-Preturo (LIAP) e l'aviosuperficie di L'Aquila
+  AIRPORTS.push(defineAirport(DATA.osm.liap, 'A', "L'Aquila-Preturo"), defineAirport(DATA.osm.avio, 'B', "Aviosuperficie L'Aquila"));
+  for (const a of AIRPORTS) { a.elev = 0; a.elev = sampleH(a.x, a.z); }
+  AIRPORTS.length && console.log('Aeroporti:', AIRPORTS.map((a) => `${a.name} ${a.heading.toFixed(0)}° ${a.length.toFixed(0)} m @ ${a.elev.toFixed(0)} m`).join(' | '));
 
   const assets = await loadAssets(renderer);
 
@@ -453,72 +626,81 @@ export async function createWorld(scene, renderer) {
   sun.shadow.normalBias = 0.035;
   scene.add(sun, sun.target);
 
-  // ---- terreno: texture reali (ambientCG, CC0) miscelate con rumore morbido, niente campi a quadretti ----
+  // ---- terreno: immagine Sentinel-2 + classi + strade, con dettaglio fotografico da vicino ----
   const terrainMat = new THREE.MeshStandardMaterial({ roughness: 0.95, metalness: 0 });
   terrainMat.defines = { TQ: 2 };
   terrainMat.onBeforeCompile = (shader) => {
-    for (const k of ['grass', 'meadow', 'forest', 'soil', 'dirt', 'rock']) shader.uniforms['t_' + k] = { value: assets[k] };
-    for (const k of ['grass', 'meadow', 'forest', 'soil', 'dirt', 'rock']) shader.uniforms['a_' + k] = { value: assets.avg[k] };
-    shader.uniforms.tNoise = { value: assets.noise };
+    for (const k of ['grass', 'forest', 'rock', 'asphalt']) shader.uniforms['t_' + k] = { value: assets[k] };
+    for (const k of ['grass', 'forest', 'rock', 'asphalt']) shader.uniforms['a_' + k] = { value: assets.avg[k] };
     shader.uniforms.n_grass = { value: assets.grassN };
     shader.uniforms.n_rock = { value: assets.rockN };
+    shader.uniforms.tNoise = { value: assets.noise };
+    shader.uniforms.tImg = { value: assets.imagery };
+    shader.uniforms.tCls = { value: assets.classes };
+    shader.uniforms.tRoad = { value: assets.roads };
+    shader.uniforms.uExt = { value: new THREE.Vector4(ext.x0, ext.z0, ext.x1 - ext.x0, ext.z1 - ext.z0) };
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float aForest;\nvarying float vForest;\nvarying vec3 vWPos;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvForest = aForest;\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-        varying float vForest;
         varying vec3 vWPos;
-        uniform sampler2D t_grass, t_meadow, t_forest, t_soil, t_dirt, t_rock, n_grass, n_rock;
-        uniform vec3 a_grass, a_meadow, a_forest, a_soil, a_dirt, a_rock;
-        uniform sampler2D tNoise;
+        uniform sampler2D t_grass, t_forest, t_rock, t_asphalt, n_grass, n_rock, tImg, tCls, tRoad, tNoise;
+        uniform vec3 a_grass, a_forest, a_rock, a_asphalt;
+        uniform vec4 uExt;
         float gRock, gNear, gFar;
-        float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
-        float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
-          return mix(mix(h21(i), h21(i+vec2(1,0)), f.x), mix(h21(i+vec2(0,1)), h21(i+vec2(1,1)), f.x), f.y); }
-        float fbm3(vec2 p){ return 0.57*n2(p) + 0.29*n2(p*2.03+7.1) + 0.14*n2(p*4.1+3.3); }
-        // due scale con rotazione: spezza la ripetizione della texture
         #if TQ >= 1
         vec3 TX(sampler2D t, vec2 p, float s, vec3 avg){
-          if (gFar > 0.999) return avg;                   // lontano: niente ripetizione visibile e zero campionamenti
           vec3 a = texture2D(t, p / s).rgb;
           vec3 b = texture2D(t, (mat2(0.8, -0.6, 0.6, 0.8) * p) / (s * 4.3) + 0.37).rgb;
-          return mix(mix(a, b, 0.4), avg, gFar);
+          return mix(mix(a, b, 0.4), avg, gFar * 0.6);
         }
         #else
-        vec3 TX(sampler2D t, vec2 p, float s, vec3 avg){ if (gFar > 0.999) return avg; return mix(texture2D(t, p / s).rgb, avg, gFar); }
+        vec3 TX(sampler2D t, vec2 p, float s, vec3 avg){ return mix(texture2D(t, p / s).rgb, avg, gFar * 0.6); }
         #endif`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         {
           vec2 p = vWPos.xz;
+          vec2 uvw = (p - uExt.xy) / uExt.zw;
           float dist = length(vWPos - cameraPosition);
           gNear = 1.0 - smoothstep(60.0, 900.0, dist);
           gFar = smoothstep(140.0, 650.0, dist);
-          float forest = clamp(vForest, 0.0, 1.0);
-          float zoneA = texture2D(tNoise, p * 0.0011).r;                       // zone vaste (~900 m)
-          float zoneB = texture2D(tNoise, p * 0.0042 + vec2(0.37, 0.11)).g;    // macchie medie (~250 m)
-          float nFine = texture2D(tNoise, p * 0.05).r;
-          // zone coltivate: grandi aree dai bordi morbidi e irregolari
-          float farm = smoothstep(0.5, 0.7, texture2D(tNoise, p * 0.00048 + vec2(0.2, 0.6)).b) * (1.0 - forest) * (1.0 - smoothstep(110.0, 160.0, vWPos.y));
-          float soilW = farm * smoothstep(0.38, 0.72, zoneB + (nFine - 0.5) * 0.25);
-          float dirtW = farm * (1.0 - soilW) * smoothstep(0.55, 0.85, texture2D(tNoise, p * 0.0028 + vec2(0.7, 0.3)).a);
-          float meadowW = smoothstep(0.28, 0.58, zoneA) * (1.0 - farm) * (1.0 - forest);
-          vec3 col = TX(t_grass, p, 5.2, a_grass) * vec3(0.66, 0.92, 0.64);
-          if (meadowW > 0.01) col = mix(col, TX(t_meadow, p, 6.4, a_meadow) * vec3(0.8, 1.05, 0.82), meadowW * 0.9);
-          #if TQ >= 1
-          if (soilW > 0.01) col = mix(col, TX(t_soil, p, 4.4, a_soil) * 0.85, soilW * 0.85);
-          if (dirtW > 0.01) col = mix(col, TX(t_dirt, p, 5.0, a_dirt) * 0.8, dirtW * 0.7);
-          #endif
-          if (forest > 0.01) col = mix(col, TX(t_forest, p, 4.8, a_forest) * 1.15, forest * 0.92);
-          // roccia sulle pendenze e in quota; neve sulle cime
-          // pendenza dalla normale interpolata (liscia): niente motivo a triangoli
+          // colore reale dal satellite (Sentinel-2 è scuro: schiarito e un po' saturato)
+          vec3 im = texture2D(tImg, uvw).rgb;
+          float l0 = dot(im, vec3(0.2126, 0.7152, 0.0722));
+          vec3 base = mix(vec3(l0), im, 1.2);
+          base *= vec3(1.08, 1.0, 0.86);                       // via il cast ciano, verdi più caldi
+          base = pow(max(base, vec3(0.0)), vec3(0.72)) * 0.95;
+          base = mix(base, base * base * 2.0, 0.25);          // un po' più di contrasto: via l'effetto lavato
+          vec4 cl = texture2D(tCls, uvw);                // bosco, urbano, roccia, acqua
+          vec2 rd = texture2D(tRoad, uvw).rg;            // strade, acque
+          float forest = cl.r, urban = cl.g, rockC = cl.b, water = max(cl.a, rd.g);
+          // il dettaglio fotografico modula il colore reale (rapporto rispetto alla texture media)
+          // solo luminosità: il colore viene dal satellite, la texture aggiunge grana (niente rumore cromatico)
+          const vec3 LW = vec3(0.2126, 0.7152, 0.0722);
+          float detail = dot(TX(t_grass, p, 5.2, a_grass), LW) / max(dot(a_grass, LW), 0.02);
+          if (forest > 0.02) detail = mix(detail, dot(TX(t_forest, p, 4.8, a_forest), LW) / max(dot(a_forest, LW), 0.02), clamp(forest * 1.2, 0.0, 1.0));
+          float dtl = clamp((detail - 1.0) * 2.1 + 1.0, 0.3, 2.2);   // grana più marcata
+          vec3 col = base * mix(1.0, dtl, 1.0 - 0.5 * gFar);
+          // microvariazione a media distanza: spezza la sfocatura dei pixel satellitari (12 m)
+// variazioni a più scale: ciuffi (~1.5 m), chiazze (~8 m), macchie (~40 m); più forti nel bosco
+          mat2 R1 = mat2(0.8, -0.6, 0.6, 0.8), R2 = mat2(0.6, 0.8, -0.8, 0.6);
+          vec4 n1 = texture2D(tNoise, R1 * p / 38.0), n2 = texture2D(tNoise, R2 * p / 9.0 + 0.31), n3 = texture2D(tNoise, R1 * p / 3.3 + 0.67);
+          float amp = 1.0 - 0.35 * gFar;
+          col *= clamp(1.0 + amp * ((n1.r - 0.5) * 1.5 + (n2.g - 0.5) * 2.2 + (n3.b - 0.5) * 2.6 * (1.0 - 0.7 * gFar) + forest * (n2.r - 0.5) * 1.2), 0.45, 1.7);
+          // roccia sulle pendenze: dalla normale interpolata
           vec3 wn = normalize(vNormal * mat3(viewMatrix));
           float slope = 1.0 - clamp(wn.y, 0.0, 1.0);
-          gRock = clamp(smoothstep(0.2, 0.4, slope + (nFine - 0.5) * 0.18) + smoothstep(105.0, 160.0, vWPos.y) * 0.55, 0.0, 1.0);
-          if (gRock > 0.01) col = mix(col, TX(t_rock, p, 7.5, a_rock) * 1.1, gRock);
-          col = mix(col, vec3(0.78, 0.8, 0.84), smoothstep(178.0, 208.0, vWPos.y) * (1.0 - smoothstep(0.3, 0.5, slope)));
-          // variazione di tono a grande scala: rompe l'effetto "tappeto"
-          col *= 0.78 + 0.34 * zoneA + (zoneB - 0.5) * 0.16;
+          gRock = clamp(rockC * 0.9 + smoothstep(0.38, 0.6, slope) * 0.8, 0.0, 1.0);
+          if (gRock > 0.02) col = mix(col, base * clamp(dot(TX(t_rock, p, 7.5, a_rock), LW) / max(dot(a_rock, LW), 0.02), 0.4, 2.0) * 1.05, gRock * 0.75);
+          // zone urbane: tono neutro con grana d'asfalto
+          if (urban > 0.02) col = mix(col, base * clamp(dot(TX(t_asphalt, p, 3.0, a_asphalt), LW) / max(dot(a_asphalt, LW), 0.02), 0.4, 2.0) * 1.1, urban * 0.55);
+          // strade
+          col = mix(col, vec3(0.10, 0.10, 0.11) * (0.8 + 0.5 * texture2D(t_asphalt, p / 2.0).r * 3.0), clamp(rd.r * 1.3, 0.0, 0.8));
+          // acqua
+          col = mix(col, vec3(0.012, 0.045, 0.06), clamp(water * 1.3, 0.0, 0.92));
+          // neve in quota
+          col = mix(col, vec3(0.8, 0.82, 0.86), smoothstep(2300.0, 2650.0, vWPos.y) * (1.0 - smoothstep(0.35, 0.55, slope)));
           diffuseColor.rgb = col;
         }`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
@@ -538,15 +720,14 @@ export async function createWorld(scene, renderer) {
   };
 
   function buildChunkGeometry(cx, cz, seg) {
-    const x0 = -HALF + cx * CHUNK, z0 = -HALF + cz * CHUNK, cell = CHUNK / seg, n = seg + 1;
-    const pos = [], nor = [], forest = [], idx = [];
+    const x0 = cx * CHUNK, z0 = cz * CHUNK, cell = CHUNK / seg, n = seg + 1;
+    const pos = [], nor = [], idx = [];
     const e = Math.max(cell, 8);
     const pushVertex = (x, z, drop) => {
       const h = terrainHeight(x, z);
       const nx = terrainHeight(x - e, z) - terrainHeight(x + e, z), nz = terrainHeight(x, z - e) - terrainHeight(x, z + e), ny = 2 * e;
       const l = Math.hypot(nx, ny, nz);
       pos.push(x, h - drop, z); nor.push(nx / l, ny / l, nz / l);
-      forest.push(forestDensity(x, z));
     };
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) pushVertex(x0 + i * cell, z0 + j * cell, 0);
     for (let j = 0; j < seg; j++) for (let i = 0; i < seg; i++) {
@@ -569,61 +750,63 @@ export async function createWorld(scene, renderer) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-    g.setAttribute('aForest', new THREE.Float32BufferAttribute(forest, 1));
     g.setIndex(idx);
     g.computeBoundingSphere();
     return g;
   }
 
-  // ---- alberi per chunk ----
+  // ---- alberi per chunk: modelli 3D vicino, sagome a media distanza ----
   const treeGeos = makeTreeGeometries();
   const mkMat = (map, rough = 0.92) => new THREE.MeshStandardMaterial({ map, vertexColors: true, roughness: rough, metalness: 0 });
-  const treeMats = {
-    bark: mkMat(assets.bark, 0.95),
-    needles: mkMat(assets.needleTile),
-    leaves: mkMat(assets.leafTile, 0.85),
-  };
+  const treeMats = { bark: mkMat(assets.bark, 0.95), needles: mkMat(assets.needleTile), leaves: mkMat(assets.leafTile, 0.85) };
+  const impostors = makeImpostors(renderer, treeGeos, treeMats);
   const tc = new THREE.Color();
   const SPECIES = {
     conifer: [['conTrunk', 'bark'], ['conFoliage', 'needles']],
     broad: [['broadTrunk', 'bark'], ['broadFoliage', 'leaves']],
     shrub: [['shrubFoliage', 'leaves']],
   };
-  function buildTrees(cx, cz) {
-    const x0 = -HALF + cx * CHUNK, z0 = -HALF + cz * CHUNK;
+  function treeList(cx, cz) {
+    const x0 = cx * CHUNK, z0 = cz * CHUNK;
     const rnd = mulberry32(cx * 977 + cz * 131 + 5);
     const lists = { conifer: [], broad: [], shrub: [] };
-    for (let i = 0; i < 1700; i++) {
+    for (let i = 0; i < 1500; i++) {
       const x = x0 + rnd() * CHUNK, z = z0 + rnd() * CHUNK;
       const f = forestDensity(x, z);
-      if (rnd() > 0.1 + f * 0.9) continue;
-      if (airportDist(x, z) < 270) continue;
+      const cls = sampleClass(x, z);
+      // fuori dal bosco restano pochi alberi isolati (campi, giardini); mai su roccia, acqua, città
+      const p = 0.015 + f * 0.95 + (1 - f) * 0.04 * (1 - cls.urban);
+      if (rnd() > p) continue;
+      if (cls.water > 0.3 || cls.urban > 0.5 || airportDist(x, z) < 200) continue;
       const h = terrainHeight(x, z);
-      if (h > 165) continue;
+      if (h > 1850) continue;
       const roll = rnd();
-      const species = h > 70 || (f > 0.5 && roll < 0.55) ? 'conifer' : roll < 0.9 ? 'broad' : 'shrub';
-      lists[species].push([x, h, z]);
+      const species = h > 1150 || (f > 0.45 && roll < 0.5) ? 'conifer' : roll < 0.88 ? 'broad' : 'shrub';
+      lists[species].push([x, h, z, rnd(), rnd(), rnd(), rnd()]);
     }
+    return lists;
+  }
+  const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+  function matrixFor(item, name) {
+    const [x, h, z, r1, r2, r3] = item;
+    const sc2 = (name === 'shrub' ? 0.9 : 1.0) + r1 * 0.9;
+    _q.setFromAxisAngle(UP, r2 * 6.283);
+    _s.set(sc2 * (0.9 + r3 * 0.25), sc2 * (0.85 + r2 * 0.45), sc2 * (0.9 + r1 * 0.25));
+    return _m.compose(_p.set(x, h - 0.3, z), _q, _s);
+  }
+  function tintFor(item, name, bark) {
+    const c = item[5], k = item[6];
+    if (bark) return tc.setRGB(0.8 + k * 0.2, 0.75 + k * 0.2, 0.7 + k * 0.2);
+    if (name === 'conifer') return tc.setHSL(0.27 + c * 0.06, 0.4 + k * 0.2, 1.0 + k * 0.2);
+    return tc.setHSL(0.18 + c * 0.12, 0.35 + k * 0.25, 0.85 + k * 0.3);
+  }
+  function nearMeshes(lists) {
     const out = [];
-    const q = new THREE.Quaternion(), s = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
     for (const [name, list] of Object.entries(lists)) {
       if (!list.length) continue;
-      // matrici e tinte condivise fra tronco e chioma della stessa pianta
-      const mats = list.map(([x, h, z]) => {
-        const sc2 = (name === 'shrub' ? 0.9 : 1.0) + rnd() * 0.9;
-        q.setFromAxisAngle(up, rnd() * 6.283);
-        s.set(sc2 * (0.9 + rnd() * 0.25), sc2 * (0.85 + rnd() * 0.45), sc2 * (0.9 + rnd() * 0.25));
-        return { m: new THREE.Matrix4().compose(new THREE.Vector3(x, h - 0.3, z), q.clone(), s.clone()), c: rnd(), k: rnd() };
-      });
       for (const [geoName, matName] of SPECIES[name]) {
         const mesh = new THREE.InstancedMesh(treeGeos[geoName], treeMats[matName], list.length);
-        mats.forEach((o, i) => {
-          mesh.setMatrixAt(i, o.m);
-          if (matName === 'bark') tc.setRGB(0.8 + o.k * 0.2, 0.75 + o.k * 0.2, 0.7 + o.k * 0.2);
-          else if (name === 'conifer') tc.setHSL(0.27 + o.c * 0.06, 0.4 + o.k * 0.2, 1.0 + o.k * 0.2);
-          else tc.setHSL(0.18 + o.c * 0.12, 0.35 + o.k * 0.25, 0.85 + o.k * 0.3);
-          mesh.setColorAt(i, tc);
-        });
+        list.forEach((it, i) => { mesh.setMatrixAt(i, matrixFor(it, name)); mesh.setColorAt(i, tintFor(it, name, matName === 'bark')); });
         mesh.castShadow = false; mesh.receiveShadow = true;
         mesh.computeBoundingSphere();
         out.push(mesh);
@@ -631,24 +814,35 @@ export async function createWorld(scene, renderer) {
     }
     return out;
   }
+  function farMeshes(lists) {
+    const out = [];
+    for (const [name, list] of Object.entries(lists)) {
+      if (!list.length) continue;
+      const imp = impostors[name];
+      const mesh = new THREE.InstancedMesh(imp.geo, imp.mat, list.length);
+      list.forEach((it, i) => { mesh.setMatrixAt(i, matrixFor(it, name)); mesh.setColorAt(i, tintFor(it, name, false).setRGB(1, 1, 1).multiplyScalar(0.9 + it[6] * 0.2)); });
+      mesh.computeBoundingSphere();
+      out.push(mesh);
+    }
+    return out;
+  }
 
+  // ---- griglia di chunk ----
+  const cxMin = Math.floor(ext.x0 / CHUNK), cxMax = Math.ceil(ext.x1 / CHUNK) - 1;
+  const czMin = Math.floor(ext.z0 / CHUNK), czMax = Math.ceil(ext.z1 / CHUNK) - 1;
   const chunks = [];
   const terrainGroup = new THREE.Group();
   scene.add(terrainGroup);
-  for (let cz = 0; cz < NCH; cz++) for (let cx = 0; cx < NCH; cx++) {
+  for (let cz = czMin; cz <= czMax; cz++) for (let cx = cxMin; cx <= cxMax; cx++) {
     const mesh = new THREE.Mesh(new THREE.BufferGeometry(), terrainMat);
     mesh.receiveShadow = true;
     mesh.visible = false;
     terrainGroup.add(mesh);
-    chunks.push({
-      cx, cz, mesh, geos: [null, null, null], lod: -1, trees: null,
-      x: -HALF + (cx + 0.5) * CHUNK, z: -HALF + (cz + 0.5) * CHUNK,
-    });
+    chunks.push({ cx, cz, mesh, geos: [null, null, null], lod: -1, lists: null, near: null, far: null, x: (cx + 0.5) * CHUNK, z: (cz + 0.5) * CHUNK });
   }
   const LOD_SEG = [64, 32, 16];
-  const quality = { level: 2, treeR: 5500, lod0: 2600, lod1: 6500 };
+  const quality = { level: 2, nearR: 2000, farR: 6000, lod0: 2600, lod1: 6500 };
 
-  // generazione a coda: ogni frame si lavora al massimo ~5 ms (niente scatti mentre si vola)
   let queue = [];
   function planChunks(cam) {
     queue = [];
@@ -656,36 +850,31 @@ export async function createWorld(scene, renderer) {
       const d = Math.hypot(ch.x - cam.x, ch.z - cam.z);
       const lod = d < quality.lod0 ? 0 : d < quality.lod1 ? 1 : 2;
       if (lod !== ch.lod) queue.push({ d: ch.lod < 0 ? d - 1e6 : d, ch, lod, kind: 'geo' });
-      const wantTrees = d < quality.treeR;
-      if (wantTrees && !ch.trees) queue.push({ d: d + 50, ch, kind: 'trees' });
-      // le ombre degli alberi costano molto: solo in qualità Alta e solo vicino all'aereo
-      if (ch.trees) ch.trees.forEach((t) => { t.visible = wantTrees; t.castShadow = quality.level >= 2 && d < 520; });
+      const wantNear = d < quality.nearR, wantFar = !wantNear && d < quality.farR;
+      if ((wantNear && !ch.near) || (wantFar && !ch.far)) queue.push({ d: d + 50, ch, kind: wantNear ? 'near' : 'far' });
+      if (ch.near) ch.near.forEach((t) => { t.visible = wantNear; t.castShadow = wantNear && quality.level >= 2 && d < 520; });
+      if (ch.far) ch.far.forEach((t) => { t.visible = wantFar; });
     }
     queue.sort((a, b) => a.d - b.d);
   }
   function runQueue(budgetMs) {
     const t0 = performance.now();
     while (queue.length && performance.now() - t0 < budgetMs) {
-      const w = queue.shift();
-      const ch = w.ch;
+      const w = queue.shift(), ch = w.ch;
       if (w.kind === 'geo') {
         if (!ch.geos[w.lod]) ch.geos[w.lod] = buildChunkGeometry(ch.cx, ch.cz, LOD_SEG[w.lod]);
         ch.mesh.geometry = ch.geos[w.lod];
         ch.mesh.visible = true;
         ch.lod = w.lod;
-      } else if (!ch.trees) {
-        ch.trees = buildTrees(ch.cx, ch.cz);
-        ch.trees.forEach((t) => terrainGroup.add(t));
+      } else {
+        if (!ch.lists) ch.lists = treeList(ch.cx, ch.cz);
+        if (w.kind === 'near' && !ch.near) { ch.near = nearMeshes(ch.lists); ch.near.forEach((t) => terrainGroup.add(t)); }
+        if (w.kind === 'far' && !ch.far) { ch.far = farMeshes(ch.lists); ch.far.forEach((t) => terrainGroup.add(t)); }
       }
     }
   }
 
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(90000, 90000).rotateX(-Math.PI / 2),
-    new THREE.MeshStandardMaterial({ color: 0x23506b, roughness: 0.1, metalness: 0, envMapIntensity: 1.4 }));
-  sea.position.y = -5;
-  scene.add(sea);
-
-  for (const a of AIRPORTS) buildAirport(scene, a, assets);
+  for (const a of AIRPORTS) buildAirport(scene, a, assets, terrainHeight);
 
   const right = new THREE.Vector3(), upv = new THREE.Vector3(), snapped = new THREE.Vector3();
   let acc = 1, started = false;
@@ -698,10 +887,10 @@ export async function createWorld(scene, renderer) {
   }
 
   return {
+    ext,
     update(target, camera, dt, time) {
       sky.position.copy(camera.position);
       sky.material.uniforms.time.value = time;
-      sea.position.x = camera.position.x; sea.position.z = camera.position.z;
       acc += dt;
       if (acc > 0.3 || !started) { planChunks(camera.position); acc = 0; started = true; }
       runQueue(5);
@@ -714,9 +903,9 @@ export async function createWorld(scene, renderer) {
     setQuality(level) {
       quality.level = level;
       const sets = [
-        { size: 1024, treeR: 2800, lod0: 1800, lod1: 4500 },
-        { size: 2048, treeR: 4200, lod0: 2200, lod1: 5500 },
-        { size: 4096, treeR: 5500, lod0: 2600, lod1: 6500 },
+        { size: 1024, nearR: 900, farR: 3200, lod0: 1800, lod1: 4500 },
+        { size: 2048, nearR: 1500, farR: 4800, lod0: 2200, lod1: 5500 },
+        { size: 4096, nearR: 2000, farR: 6500, lod0: 2600, lod1: 6500 },
       ][level];
       Object.assign(quality, sets);
       terrainMat.defines.TQ = level;
