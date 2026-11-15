@@ -67,3 +67,11 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8ab; font-f
 #panel .nav small { font-size: 11px; color: #9fb3c8; }
 #help .pad { margin-top: 8px; font-size: 11px; line-height: 1.5; color: #c4d0dc; max-width: 330px; }
 #help .pad b { color: #9fb3c8; letter-spacing: .1em; }
+
+#lang {
+  position: fixed; left: 16px; top: 16px; padding: 6px 12px; font: 700 12px "Segoe UI", system-ui, sans-serif; letter-spacing: .12em;
+  color: #fff; background: rgba(10, 18, 28, .62); border: 1px solid rgba(255,255,255,.2); border-radius: 8px;
+  cursor: pointer; backdrop-filter: blur(4px);
+}
+#lang:hover { background: rgba(40, 80, 130, .7); }
+#help .pad div { margin-top: 2px; }

@@ -22,7 +22,7 @@ export function worldToLocal(a, x, z) {
 }
 /** posizione di partenza (testata di decollo) */
 export function spawnFor(a) {
-  const p = localToWorld(a, 0, a.length / 2 - 60);
+  const p = localToWorld(a, 0, a.length / 2 - 95);
   return { x: p.x, z: p.z, yaw: a.th };
 }
 
@@ -272,10 +272,10 @@ function buildAirport(scene, a) {
 
   // faro visibile da lontano
   const beam = new THREE.Mesh(
-    new THREE.CylinderGeometry(4, 4, 600, 12, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xffd060, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+    new THREE.CylinderGeometry(2.2, 3.5, 420, 14, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xffb030, transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
   );
-  beam.position.set(96, 300, -L * 0.02);
+  beam.position.set(96, 210, -L * 0.02);
   g.add(beam);
 }
 

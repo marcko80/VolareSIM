@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { t } from './i18n.js';
 
 /**
  * Cockpit 3D rudimentale: cruscotto con strumenti disegnati su canvas
@@ -150,7 +151,7 @@ export function createCockpit() {
 
     // anemometro (kt): 0-160 su 270°
     let [cx, cy] = [cols[0], rows[0]];
-    dial(cx, cy, 'ANEMOMETRO kt');
+    dial(cx, cy, t('gASI'));
     const asiA = (kt) => 135 + 270 * Math.min(kt, 165) / 165;
     arc(cx, cy, asiA(47), asiA(110) - asiA(47), '#2fd06a');
     arc(cx, cy, asiA(47), asiA(85) - asiA(47), '#fff', R - 20, 3);
@@ -160,7 +161,7 @@ export function createCockpit() {
 
     // orizzonte artificiale
     [cx, cy] = [cols[1], rows[0]];
-    dial(cx, cy, 'ORIZZONTE');
+    dial(cx, cy, t('gAI'));
     ctx.save();
     ctx.translate(cx, cy);
     ctx.beginPath(); ctx.arc(0, 0, R - 5, 0, Math.PI * 2); ctx.clip();
@@ -184,7 +185,7 @@ export function createCockpit() {
 
     // altimetro
     [cx, cy] = [cols[2], rows[0]];
-    dial(cx, cy, 'ALTIMETRO ft');
+    dial(cx, cy, t('gALT'));
     ticks(cx, cy, -90, 360, 50, 5, (i) => (i / 5) % 10, 18);
     const alt = Math.max(0, f.altFt);
     needle(cx, cy, -90 + 360 * ((alt % 1000) / 1000), R - 18);
@@ -192,7 +193,7 @@ export function createCockpit() {
 
     // giri motore
     [cx, cy] = [cols[0], rows[1]];
-    dial(cx, cy, 'GIRI x100');
+    dial(cx, cy, t('gRPM'));
     const rpm = 700 + f.throttle * 2000;
     const rpmA = (r) => 135 + 270 * r / 3000;
     arc(cx, cy, rpmA(2100), rpmA(2700) - rpmA(2100), '#2fd06a');
@@ -200,11 +201,11 @@ export function createCockpit() {
     ticks(cx, cy, 135, 270, 6, 1, (i) => i * 5);
     needle(cx, cy, rpmA(rpm), R - 18);
     ctx.fillStyle = '#9fe8b4'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('FLAP ' + Math.round(f.flapDeg) + '°', cx, cy + 40);
+    ctx.fillText(t('flapShort') + ' ' + Math.round(f.flapDeg) + '°', cx, cy + 40);
 
     // bussola
     [cx, cy] = [cols[1], rows[1]];
-    dial(cx, cy, 'PRUA');
+    dial(cx, cy, t('gHDG'));
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(-rad(f.heading));
     ctx.fillStyle = '#fff'; ctx.strokeStyle = '#fff'; ctx.font = 'bold 20px sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 2;
@@ -216,7 +217,7 @@ export function createCockpit() {
       ctx.stroke();
       if (big) {
         ctx.save(); ctx.translate(Math.cos(a) * (R - 40), Math.sin(a) * (R - 40)); ctx.rotate(rad(d));
-        ctx.fillText(d % 90 === 0 ? 'NESO'[d / 90] : String(d / 10), 0, 0); ctx.restore();
+        ctx.fillText(d % 90 === 0 ? t('compass')[d / 90] : String(d / 10), 0, 0); ctx.restore();
       }
     }
     ctx.restore();
@@ -226,7 +227,7 @@ export function createCockpit() {
 
     // variometro
     [cx, cy] = [cols[2], rows[1]];
-    dial(cx, cy, 'V/S ft/min');
+    dial(cx, cy, t('gVSI'));
     const vs = Math.max(-2000, Math.min(2000, f.vsFpm));
     ctx.save(); ctx.translate(cx, cy);
     ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineWidth = 2;

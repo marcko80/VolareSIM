@@ -158,7 +158,7 @@ export class Flight {
     _e.setFromQuaternion(q, 'YXZ');
     const speedH = Math.hypot(vel.x, vel.z);
 
-    if (pen > 1.5) return this.crash('Impatto contro il terreno');
+    if (pen > 1.5) return this.crash('cTerrain');
 
     pos.y += pen;
     if (vel.y < 0) {
@@ -167,12 +167,12 @@ export class Flight {
         const onRwy = isOnRunway(pos.x, pos.z);
         const roll = Math.abs(_e.z);
         if (sink > 5.0 || (!onRwy && sink > 3.5) || roll > 0.6 || (_e.x < -0.2 && speedH > 15)) {
-          return this.crash(sink > 5 ? 'Impatto violento' : roll > 0.6 ? 'Ala toccata a terra' : 'Atterraggio fuori controllo');
+          return this.crash(sink > 5 ? 'cHard' : roll > 0.6 ? 'cWing' : 'cControl');
         }
         const fpm = Math.round(sink * 196.85);
         const grade = sink < 1.2 ? 'good' : sink < 2.5 ? 'ok' : 'bad';
-        const text = sink < 1.2 ? 'Atterraggio morbido' : sink < 2.5 ? 'Atterraggio buono' : 'Atterraggio duro';
-        this.onEvent({ type: 'landing', text, detail: `${fpm} ft/min${onRwy ? '' : ' — fuori pista'}`, grade });
+        const key = sink < 1.2 ? 'landSoft' : sink < 2.5 ? 'landGood' : 'landHard';
+        this.onEvent({ type: 'landing', key, fpm, offRunway: !onRwy, grade });
       }
       vel.y = 0;
     }
@@ -211,7 +211,7 @@ export class Flight {
     this.crashed = true;
     this.vel.set(0, 0, 0);
     this.w.set(0, 0, 0);
-    this.onEvent({ type: 'crash', text: 'INCIDENTE', detail: reason });
+    this.onEvent({ type: 'crash', reason });
   }
 
   updateDerived() {

@@ -7,6 +7,7 @@ import { Flight } from './flight.js';
 import { Controls } from './controls.js';
 import { Hud } from './hud.js';
 import { SimAudio } from './audio.js';
+import { t, applyStatic, toggleLang, setLang } from './i18n.js';
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -36,16 +37,21 @@ const audio = new SimAudio();
 let airportIdx = 0;
 
 const flight = new Flight((ev) => {
-  if (ev.type === 'landing') { hud.message(ev.text, ev.detail, ev.grade, 5); audio.thump(ev.grade === 'good' ? 0.5 : ev.grade === 'ok' ? 1 : 1.8); }
-  else if (ev.type === 'crash') { hud.message(ev.text, `${ev.detail} — premi R per ripartire`, 'bad', 999); audio.thump(2.5); }
+  if (ev.type === 'landing') {
+    hud.message(t(ev.key), `${ev.fpm} ft/min${ev.offRunway ? ' — ' + t('offRunway') : ''}`, ev.grade, 5);
+    audio.thump(ev.grade === 'good' ? 0.5 : ev.grade === 'ok' ? 1 : 1.8);
+  } else if (ev.type === 'crash') {
+    hud.message(t('crash'), `${t(ev.reason)} — ${t('pressR')}`, 'bad', 999);
+    audio.thump(2.5);
+  }
 });
 
 let paused = false;
 const CAMERAS = [
-  { id: 'chase', name: 'Inseguimento' },
-  { id: 'cabin', name: 'Cabina' },
-  { id: 'cockpit', name: 'Cockpit' },
-  { id: 'tower', name: 'Torre' },
+  { id: 'chase', name: 'camChase' },
+  { id: 'cabin', name: 'camCabin' },
+  { id: 'cockpit', name: 'camCockpit' },
+  { id: 'tower', name: 'camTower' },
 ];
 let camIndex = 0;
 const camQuat = new THREE.Quaternion();
@@ -66,21 +72,22 @@ function reset() {
   flight.reset(spawnFor(AIRPORTS[airportIdx]));
   camQuat.copy(flight.quat);
   hud.hideMessage();
-  hud.message(AIRPORTS[airportIdx].name, 'Manetta al massimo (9), a 55 kt tira dolcemente (S)', 'ok', 5);
+  hud.message(AIRPORTS[airportIdx].name, t('ready'), 'ok', 5);
 }
 
 const controls = new Controls(flight, {
   camera: () => {
     camIndex = (camIndex + 1) % CAMERAS.length;
     applyCameraMode();
-    hud.message('Camera', CAMERAS[camIndex].name, 'ok', 1.2);
+    hud.message(t('camera'), t(CAMERAS[camIndex].name), 'ok', 1.2);
   },
   pause: () => { paused = !paused; },
   reset,
   help: () => hud.toggleHelp(),
   airport: () => { airportIdx = (airportIdx + 1) % AIRPORTS.length; reset(); },
-  mute: () => { audio.start(); hud.message('Audio', audio.toggleMute() ? 'disattivato' : 'attivo', 'ok', 1.2); },
-  notify: (t, d) => hud.message(t, d, 'ok', 2.5),
+  mute: () => { audio.start(); hud.message(t('audio'), t(audio.toggleMute() ? 'audioOff' : 'audioOn'), 'ok', 1.2); },
+  notify: (key, d, raw) => hud.message(t(key), raw ? d : t(d), 'ok', 2.5),
+  lang: () => { toggleLang(); hud.message(t('language'), t('langName'), 'ok', 1.2); },
 });
 
 // l'audio parte alla prima interazione (policy dei browser)
@@ -110,7 +117,7 @@ function updateCamera(dt) {
   _e.set(look.pitch, look.yaw, 0, 'YXZ');
 
   if (id === 'cockpit' || id === 'cabin') {
-    const eye = id === 'cockpit' ? EYE : _v.set(-0.28, 0.58, -0.55);
+    const eye = id === 'cockpit' ? EYE : _v.copy(EYE).setY(EYE.y + 0.3);
     camera.position.copy(eye).applyQuaternion(flight.quat).add(p);
     camera.quaternion.copy(flight.quat).multiply(_q.setFromEuler(_e));
   } else if (id === 'chase') {
@@ -153,6 +160,8 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+applyStatic();
+document.getElementById('lang').addEventListener('click', (e) => { controls.actions.lang(); e.currentTarget.blur(); });
 reset();
 applyCameraMode();
 
@@ -193,4 +202,9 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // utile per il debug dalla console del browser
-window.__sim = { flight, controls, camera, scene, setCamera: (i) => { camIndex = i; applyCameraMode(); }, THREE };
+window.__sim = {
+  flight, controls, camera, scene, THREE, setLang,
+  setCamera: (i) => { camIndex = i; applyCameraMode(); },
+  setAirport: (i) => { airportIdx = i; reset(); },
+  camReset: () => camQuat.copy(flight.quat),
+};

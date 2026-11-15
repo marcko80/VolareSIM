@@ -1,3 +1,5 @@
+import { t, getLang } from './i18n.js';
+
 const $ = (id) => document.getElementById(id);
 
 export class Hud {
@@ -38,18 +40,18 @@ export class Hud {
     e.thr.textContent = Math.round(f.throttle * 100) + '%';
     e.bthr.style.width = f.throttle * 100 + '%';
     e.flap.textContent = Math.round(f.flapDeg);
-    e.brake.textContent = f.input.brake ? 'ON' : '-';
+    e.brake.textContent = f.input.brake ? t('on') : '-';
 
-    // avvisi
+    // avvisi / warnings
     const w = [];
-    if (paused) w.push(['PAUSA', 'amber']);
-    if (f.stalled && !f.onGround) w.push(['STALLO', '']);
-    else if (!f.onGround && f.aoa > 0.24 && f.ias > 20) w.push(['ATTENZIONE STALLO', 'amber']);
-    if (!f.onGround && f.agl < 150 && f.vsFpm < -900) w.push(['TERRENO — TIRA', '']);
-    const key = w.map((x) => x.join(':')).join('|');
+    if (paused) w.push(['wPause', 'amber']);
+    if (f.stalled && !f.onGround) w.push(['wStall', '']);
+    else if (!f.onGround && f.aoa > 0.24 && f.ias > 20) w.push(['wStallWarn', 'amber']);
+    if (!f.onGround && f.agl < 150 && f.vsFpm < -900) w.push(['wTerrain', '']);
+    const key = getLang() + w.map((x) => x.join(':')).join('|');
     if (key !== this.warnKey) {
       this.warnKey = key;
-      e.warnings.innerHTML = w.map(([t, c]) => `<div class="warn ${c}">${t}</div>`).join('');
+      e.warnings.innerHTML = w.map(([k, c]) => `<div class="warn ${c}">${t(k)}</div>`).join('');
     }
 
     if (this.msgTimer > 0) {

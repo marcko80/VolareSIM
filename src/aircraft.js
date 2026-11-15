@@ -43,36 +43,36 @@ export function createCessna() {
     [0.52, -1.5], [0.38, -2.7], [0.22, -3.7], [0.12, -4.2], [0.0, -4.3],
   ], white));
   // cofano motore + ogiva
-  add(always, lathe([[0.0, 3.5], [0.28, 3.45], [0.48, 3.25], [0.56, 2.7], [0.58, 2.1], [0.0, 2.1]], white));
+  add(always, lathe([[0.0, 3.5], [0.22, 3.46], [0.4, 3.3], [0.5, 2.9], [0.55, 2.4], [0.58, 2.1], [0.0, 2.1]], white), 0, -0.12, 0);
   const spin = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.5, 16), red);
   spin.rotation.x = -Math.PI / 2;
-  add(always, spin, 0, 0, -3.72);
-  add(always, box(0.7, 0.16, 0.1, dark), 0, -0.2, -3.3);
+  add(always, spin, 0, -0.12, -3.72);
+  add(always, box(0.7, 0.16, 0.1, dark), 0, -0.32, -3.3);
   // banda blu e filetti rossi
-  add(always, lathe([[0.575, 2.9], [0.585, 2.9], [0.585, 2.7], [0.575, 2.7]], blue));
+  add(always, lathe([[0.575, 2.9], [0.585, 2.9], [0.585, 2.7], [0.575, 2.7]], blue), 0, -0.12, 0);
   for (const s of [-1, 1]) {
     add(exterior, box(0.02, 0.09, 4.3, red), s * 0.58, -0.05, 1.5);
     add(exterior, box(0.02, 0.2, 1.0, blue), s * 0.585, -0.05, -0.9);
   }
   // parabrezza e finestrini
-  const ws = add(exterior, box(0.92, 0.34, 0.85, glass), 0, 0.4, -1.05);
+  const ws = add(exterior, box(0.92, 0.5, 0.85, glass), 0, 0.62, -1.05);
   ws.rotation.x = 0.35;
-  add(exterior, box(1.22, 0.3, 1.4, glass), 0, 0.38, 0.35);
+  add(exterior, box(1.22, 0.5, 1.4, glass), 0, 0.62, 0.35);
   add(exterior, box(0.5, 0.2, 0.6, glass), 0, 0.3, 1.4).scale.set(1.6, 1, 1);
-  add(exterior, box(1.0, 0.07, 1.9, white), 0, 0.62, 0.35);
+  add(exterior, box(1.0, 0.07, 2.0, white), 0, 0.88, 0.3);
 
   // ala alta con flap e alettoni
   const wing = new THREE.Group();
   always.add(wing);
-  // la parte centrale sta nel gruppo "exterior": sparisce nelle viste interne (altrimenti fa da soffitto)
-  add(exterior, box(1.3, 0.12, 1.2, white), 0, 0.72, -0.62);
-  add(wing, box(4.85, 0.12, 1.2, white), -3.075, 0.72, -0.62);
-  add(wing, box(4.85, 0.12, 1.2, white), 3.075, 0.72, -0.62);
-  add(wing, box(0.1, 0.1, 1.55, red), 5.52, 0.72, -0.4);
-  add(wing, box(0.1, 0.1, 1.55, red), -5.52, 0.72, -0.4);
+  // ala alta appoggiata sul tetto della cabina
+  add(exterior, box(1.3, 0.12, 1.2, white), 0, 0.95, -0.62); // tratto centrale: nascosto nelle viste interne
+  add(wing, box(4.85, 0.12, 1.2, white), -3.075, 0.95, -0.62);
+  add(wing, box(4.85, 0.12, 1.2, white), 3.075, 0.95, -0.62);
+  add(wing, box(0.1, 0.1, 1.55, red), 5.52, 0.95, -0.4);
+  add(wing, box(0.1, 0.1, 1.55, red), -5.52, 0.95, -0.4);
   const hinge = (x, len, chord = 0.4, mat = white) => {
     const p = new THREE.Group();
-    p.position.set(x, 0.72, -0.02);
+    p.position.set(x, 0.95, -0.02);
     const surf = box(len, 0.07, chord, mat);
     surf.position.z = chord / 2;
     surf.castShadow = true;
@@ -83,8 +83,8 @@ export function createCessna() {
   const flapL = hinge(-1.75, 2.4), flapR = hinge(1.75, 2.4);
   const ailL = hinge(-4.25, 2.2), ailR = hinge(4.25, 2.2);
   for (const s of [-1, 1]) {
-    strut(wing, s * 0.55, -0.45, -0.35, s * 3.4, 0.68, -0.35);
-    strut(wing, s * 0.55, -0.45, -0.1, s * 3.4, 0.68, -0.1, 0.05);
+    strut(wing, s * 0.55, -0.45, -0.35, s * 3.4, 0.9, -0.35);
+    strut(wing, s * 0.55, -0.45, -0.1, s * 3.4, 0.9, -0.1, 0.05);
   }
   // luci di navigazione e strobo
   const bulb = (color, x, y, z) => {
@@ -93,9 +93,9 @@ export function createCessna() {
     always.add(m);
     return m;
   };
-  bulb(0xff2020, -5.6, 0.72, -0.35);
-  bulb(0x20ff40, 5.6, 0.72, -0.35);
-  const strobes = [bulb(0xffffff, -5.62, 0.72, 0.25), bulb(0xffffff, 5.62, 0.72, 0.25), bulb(0xffffff, 0, 1.55, 4.0)];
+  bulb(0xff2020, -5.6, 0.95, -0.35);
+  bulb(0x20ff40, 5.6, 0.95, -0.35);
+  const strobes = [bulb(0xffffff, -5.62, 0.95, 0.25), bulb(0xffffff, 5.62, 0.95, 0.25), bulb(0xffffff, 0, 1.55, 4.0)];
   strobes.forEach((s) => s.scale.setScalar(1.6));
 
   // coda con equilibratore e timone
@@ -124,7 +124,7 @@ export function createCessna() {
 
   // elica
   const prop = new THREE.Group();
-  prop.position.set(0, 0, -3.95);
+  prop.position.set(0, -0.12, -3.95);
   const blade = box(0.15, 2.05, 0.04, dark);
   blade.castShadow = true;
   prop.add(blade);

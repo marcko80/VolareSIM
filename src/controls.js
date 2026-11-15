@@ -1,6 +1,6 @@
 const GAME_KEYS = new Set([
   'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyF', 'KeyG', 'KeyB', 'KeyC', 'KeyP', 'KeyR', 'KeyH', 'KeyZ',
-  'KeyK', 'KeyM', 'KeyI',
+  'KeyK', 'KeyM', 'KeyI', 'KeyL',
   'Space', 'ShiftLeft', 'ShiftRight', 'PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
   'Digit0', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9',
 ]);
@@ -42,9 +42,10 @@ export class Controls {
         case 'KeyH': actions.help(); break;
         case 'KeyK': actions.airport(); break;
         case 'KeyM': actions.mute(); break;
+        case 'KeyL': actions.lang(); break;
         case 'KeyI':
           this.invertPitch = !this.invertPitch;
-          actions.notify('Asse beccheggio joystick', this.invertPitch ? 'invertito' : 'normale');
+          actions.notify('padAxis', this.invertPitch ? 'inverted' : 'normal');
           break;
         default:
           if (e.code.startsWith('Digit')) {
@@ -57,7 +58,7 @@ export class Controls {
     window.addEventListener('blur', () => this.keys.clear());
 
     window.addEventListener('gamepadconnected', (e) => {
-      actions.notify('Joystick collegato', e.gamepad.id.slice(0, 48));
+      actions.notify('padConnected', e.gamepad.id.slice(0, 48), true);
     });
     window.addEventListener('gamepaddisconnected', () => { this.pad = null; });
   }

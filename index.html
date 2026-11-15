@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,45 +11,46 @@
 
   <div id="cockpit-frame" class="hidden"></div>
 
+  <button id="lang" title="L">EN</button>
+
   <div id="warnings"></div>
   <div id="message"></div>
 
   <div id="panel">
     <div class="nav"><b id="v-apt">—</b><small id="v-dest"></small></div>
-    <div class="row"><span>VELOCITÀ</span><b id="v-ias">0</b><i>kt</i></div>
-    <div class="row"><span>QUOTA</span><b id="v-alt">0</b><i>ft</i></div>
-    <div class="row"><span>V/S</span><b id="v-vs">0</b><i>ft/min</i></div>
-    <div class="row"><span>PRUA</span><b id="v-hdg">000</b><i>°</i></div>
-    <div class="row"><span>AGL</span><b id="v-agl">0</b><i>m</i></div>
-    <div class="bar"><span>MANETTA</span><div class="track"><div id="b-thr"></div></div><b id="v-thr">0%</b></div>
-    <div class="row"><span>FLAP</span><b id="v-flap">0</b><i>°</i></div>
-    <div class="row"><span>FRENI</span><b id="v-brake">-</b></div>
+    <div class="row"><span data-i18n="speed">AIRSPEED</span><b id="v-ias">0</b><i>kt</i></div>
+    <div class="row"><span data-i18n="alt">ALTITUDE</span><b id="v-alt">0</b><i>ft</i></div>
+    <div class="row"><span data-i18n="vs">V/S</span><b id="v-vs">0</b><i>ft/min</i></div>
+    <div class="row"><span data-i18n="hdg">HEADING</span><b id="v-hdg">000</b><i>°</i></div>
+    <div class="row"><span data-i18n="agl">AGL</span><b id="v-agl">0</b><i>m</i></div>
+    <div class="bar"><span data-i18n="thr">THROTTLE</span><div class="track"><div id="b-thr"></div></div><b id="v-thr">0%</b></div>
+    <div class="row"><span data-i18n="flap">FLAPS</span><b id="v-flap">0</b><i>°</i></div>
+    <div class="row"><span data-i18n="brake">BRAKES</span><b id="v-brake">-</b></div>
   </div>
 
   <canvas id="adi" width="180" height="180"></canvas>
 
   <div id="help">
-    <b>COMANDI</b>
+    <b data-i18n="helpTitle">CONTROLS</b>
     <table>
-      <tr><td>W / S</td><td>Picchia / Cabra</td></tr>
-      <tr><td>A / D</td><td>Rollio sx / dx</td></tr>
-      <tr><td>Q / E</td><td>Pedaliera sx / dx</td></tr>
-      <tr><td>Shift / Z</td><td>Manetta + / −</td></tr>
-      <tr><td>0 – 9</td><td>Manetta 0–90% (0 = 0, 9 = 100)</td></tr>
-      <tr><td>F / G</td><td>Flap giù / su</td></tr>
-      <tr><td>B / Spazio</td><td>Freni</td></tr>
-      <tr><td>C</td><td>Camera: inseguimento, cabina, cockpit, torre</td></tr>
-      <tr><td>Mouse (trascina)</td><td>Guarda attorno</td></tr>
-      <tr><td>K</td><td>Cambia aeroporto di partenza</td></tr>
-      <tr><td>P / R</td><td>Pausa / riparti</td></tr>
-      <tr><td>M</td><td>Audio on / off</td></tr>
-      <tr><td>I</td><td>Inverti asse beccheggio joystick</td></tr>
-      <tr><td>H</td><td>Mostra / nascondi aiuto</td></tr>
+      <tr><td>W / S</td><td data-i18n="kPitch"></td></tr>
+      <tr><td>A / D</td><td data-i18n="kRoll"></td></tr>
+      <tr><td>Q / E</td><td data-i18n="kRudder"></td></tr>
+      <tr><td>Shift / Z</td><td data-i18n="kThrottle"></td></tr>
+      <tr><td>0 – 9</td><td data-i18n="kThrottleDirect"></td></tr>
+      <tr><td>F / G</td><td data-i18n="kFlaps"></td></tr>
+      <tr><td>B / Space</td><td data-i18n="kBrakes"></td></tr>
+      <tr><td>C</td><td data-i18n="kCamera"></td></tr>
+      <tr><td data-i18n="kMouseKey"></td><td data-i18n="kMouse"></td></tr>
+      <tr><td>K</td><td data-i18n="kAirport"></td></tr>
+      <tr><td>P / R</td><td data-i18n="kPause"></td></tr>
+      <tr><td>M</td><td data-i18n="kAudio"></td></tr>
+      <tr><td>I</td><td data-i18n="kInvert"></td></tr>
+      <tr><td>L</td><td data-i18n="kLang"></td></tr>
+      <tr><td>H</td><td data-i18n="kHelp"></td></tr>
     </table>
-    <div class="pad"><b>JOYSTICK / GAMEPAD</b><br>
-      Stick: beccheggio e rollio · stick dx o torsione: pedaliera<br>
-      Grilletti RT/LT o cursore: manetta · A o grilletto: freni<br>
-      RB/LB: flap · Y: camera · X: riparti · Start: pausa · Back: aeroporto</div>
+    <div class="pad"><b data-i18n="padTitle">JOYSTICK / GAMEPAD</b>
+      <div data-i18n="pad1"></div><div data-i18n="pad2"></div><div data-i18n="pad3"></div></div>
   </div>
 
   <script type="module" src="/src/main.js"></script>

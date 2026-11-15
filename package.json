@@ -1,8 +1,8 @@
 {
   "name": "volaresim",
   "productName": "VolareSIM",
-  "version": "0.2.0",
-  "description": "Semplice simulatore di volo civile (Cessna) in Three.js, anche come app desktop",
+  "version": "0.3.0",
+  "description": "Simple civil flight simulator (Cessna) built with Three.js - runs in the browser and as a Windows desktop app",
   "author": "marcko80",
   "private": true,
   "type": "module",
@@ -12,7 +12,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "app": "vite build && electron .",
-    "dist": "vite build && electron-builder --win --publish never"
+    "dist": "vite build && electron-builder --win --publish never",
+    "screenshots": "vite build && node tools/screenshots.mjs"
   },
   "dependencies": {
     "three": "^0.187.0",
@@ -25,12 +26,28 @@
   "build": {
     "appId": "com.volaresim.app",
     "productName": "VolareSIM",
-    "directories": { "output": "release" },
-    "files": ["dist/**", "electron/**", "package.json"],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "portable": {
