@@ -13,3 +13,10 @@ asphalt.jpg                Asphalt 031 https://ambientcg.com/view?id=Asphalt031
 
 Licenza CC0 1.0: uso libero, anche commerciale, senza obbligo di attribuzione (data comunque per gratitudine).
 Le texture sono ridimensionate/convertite solo come originali 1K JPG; nessuna modifica ai file.
+
+Aereo (public/textures/aircraft), tutte CC0 da ambientCG:
+metal_*.jpg      Metal 012       https://ambientcg.com/view?id=Metal012
+leather_*.jpg    Leather 026     https://ambientcg.com/view?id=Leather026
+carpet_*.jpg     Carpet 001      https://ambientcg.com/view?id=Carpet001
+plastic_*.jpg    Plastic 018 B   https://ambientcg.com/view?id=Plastic018B
+fabric_*.jpg     Fabric 061      https://ambientcg.com/view?id=Fabric061

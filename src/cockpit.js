@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { t } from './i18n.js';
+import { pbr } from './materials.js';
 
 /**
  * Interno del Cessna: cruscotto con strumenti disegnati su canvas ad alta risoluzione (lancette dinamiche),
@@ -21,7 +22,9 @@ const rad = (d) => (d * Math.PI) / 180;
 export function createCockpit() {
   const group = new THREE.Group();
   const mat = (c, rough = 0.8, metal = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: rough, metalness: metal });
-  const dark = mat(0x25282d, 0.7), grey = mat(0x4d525a, 0.75), seatMat = mat(0x2c313a, 0.95), chrome = mat(0xb9bec6, 0.25, 1);
+  const dark = pbr('plastic', { repeat: 3.3, color: 0x5d6168, normalScale: 0.9 }), grey = pbr('plastic', { repeat: 2.2, color: 0x8d929b, normalScale: 0.7 });
+  const seatMat = pbr('leather', { repeat: 1.8, color: 0x8a93a6, normalScale: 1.3 });
+  const chrome = pbr('metal', { repeat: 1, color: 0xe3e6ec, metalness: 1, roughness: 0.55, normalScale: 0.25 });
   const black = mat(0x0c0d0e, 0.55);
   const add = (parent, geo, material, x = 0, y = 0, z = 0) => {
     const m = new THREE.Mesh(geo, material);

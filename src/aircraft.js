@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildFuselage, liftingSurface, tubeBetween } from './geometry.js';
-import { getFuselageTextures } from './livery.js';
+import { getFuselageTextures, stripeTable } from './livery.js';
+import { pbr, skinDetail, acTex } from './materials.js';
 
 /**
  * Cessna 172 procedurale. Convenzione: avanti = -Z, su = +Y, destra = +X, origine = baricentro.
@@ -13,10 +14,10 @@ export function createCessna() {
 
   // ---------------------------------------------------------------- materiali
   const paint = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.12, ...extra });
-  const white = paint(0xe6e6e2);
-  const red = paint(0xbe2028);
-  const steel = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.35, metalness: 0.9 });
-  const darkMetal = new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.45, metalness: 0.7 });
+  const white = skinDetail(paint(0xe6e6e2), { seed: 1, chips: 0.55, grime: 0.75 });
+  const red = skinDetail(paint(0xbe2028), { seed: 4, panel: [0.5, 0.4], chips: 0.4, grime: 0.6 });
+  const steel = pbr('metal', { repeat: 1, repeatY: 3, color: 0xcfd3d9, metalness: 1, roughness: 0.9, normalScale: 0.6 });
+  const darkMetal = pbr('metal', { repeat: 1, repeatY: 2, color: 0x4a4d54, metalness: 0.9, roughness: 0.9, normalScale: 0.5 });
   const rubber = new THREE.MeshStandardMaterial({ color: 0x151517, roughness: 0.95, metalness: 0 });
   const black = new THREE.MeshStandardMaterial({ color: 0x0b0b0c, roughness: 0.6 });
 
@@ -24,6 +25,7 @@ export function createCessna() {
     map: tex.skin, alphaMap: tex.mask, alphaTest: 0.5, alphaToCoverage: true,
     roughness: 0.28, metalness: 0.1,
   });
+  skinDetail(skinMat, { seed: 2, panel: [0.8, 0.55], chips: 0, grime: 0.7, stripe: stripeTable() });
   const glassMat = new THREE.MeshStandardMaterial({
     color: 0x16303a, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.22,
     alphaMap: tex.glass, depthWrite: false, side: THREE.DoubleSide, envMapIntensity: 0.9,
@@ -31,6 +33,7 @@ export function createCessna() {
   const shellMat = new THREE.MeshStandardMaterial({
     map: tex.interior, alphaMap: tex.mask, alphaTest: 0.5, alphaToCoverage: true, side: THREE.BackSide, roughness: 0.92, envMapIntensity: 1.0,
   });
+  shellMat.normalMap = acTex('fabric_n', 26, 11); shellMat.normalScale.set(0.7, 0.7);   // trama del rivestimento interno
 
   const add = (parent, obj, mat, x = 0, y = 0, z = 0) => {
     const m = obj.isObject3D ? obj : new THREE.Mesh(obj, mat);
@@ -41,7 +44,7 @@ export function createCessna() {
   };
 
   // ---------------------------------------------------------------- fusoliera
-  const fusGeo = buildFuselage({ rings: 170, seg: 88 });
+  const fusGeo = buildFuselage({ rings: 220, seg: 96 });
   add(group, fusGeo, skinMat);
   const glass = new THREE.Mesh(fusGeo, glassMat);
   glass.renderOrder = 2;
@@ -162,7 +165,7 @@ export function createCessna() {
   // ---------------------------------------------------------------- elica e ogiva
   const spinner = new THREE.Mesh(
     new THREE.LatheGeometry([[0.0, 0.0], [0.14, 0.004], [0.155, 0.07], [0.125, 0.2], [0.06, 0.33], [0.0, 0.4]].map(([r, y]) => new THREE.Vector2(r, y)), 28),
-    paint(0xc9ccd2, { metalness: 0.9, roughness: 0.2 }));
+    pbr('metal', { repeat: 2, repeatY: 1, color: 0xe4e7ec, metalness: 1, roughness: 0.8, normalScale: 0.4 }));
   spinner.rotation.x = -Math.PI / 2;
   spinner.position.set(0, -0.12, -3.37);
   spinner.castShadow = true;

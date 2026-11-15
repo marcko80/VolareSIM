@@ -44,6 +44,13 @@ function findPhi(z, y, side) {
   return side > 0 ? lo : 2 * Math.PI - lo;
 }
 
+/** quota (m) della striscia centrale lungo la fusoliera, ogni 0.1 m da z = -2.2 a 4.2 */
+export function stripeTable() {
+  const t = [];
+  for (let i = 0; i <= 64; i++) t.push(Math.min(0.1, fusParams(-2.2 + i * 0.1).top - 0.18));
+  return t;
+}
+
 let cache = null;
 
 export function getFuselageTextures() {
@@ -75,12 +82,7 @@ export function getFuselageTextures() {
       // cappottatura: parte alta antiriflesso e labbro anteriore blu
       if (z < -1.62 && ax < 0.34 && y > p.top - 0.16) { r = 38; g = 40; b = 46; }
       if (z < -3.18) { r = 24; g = 52; b = 120; }
-      // strisce
-      if (z > -2.2 && z < 4.2) {
-        const dy = y - yc;
-        if (Math.abs(dy) < 0.065) { r = 190; g = 32; b = 40; }
-        else if (dy < -0.095 && dy > -0.15) { r = 24; g = 52; b = 120; }
-      }
+            // (le strisce rosse/blu sono disegnate nello shader: vedi stripeTable e skinDetail)
       // linee dei pannelli
       const seam = Math.min(1, Math.max(0, (0.0055 - Math.abs(z + 2.1)) / 0.0025));
       if (seam > 0) { r += (120 - r) * seam; g += (124 - g) * seam; b += (130 - b) * seam; }
