@@ -19,7 +19,9 @@ ws.onmessage = (e) => {
 const cdp = (method, params = {}) => new Promise((res) => { const id = ++seq; pending.set(id, res); ws.send(JSON.stringify({ id, method, params })); });
 const run = async (expression) => (await cdp('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })).result?.result?.value;
 await cdp('Runtime.enable');
-await sleep(7000);
+let t0 = Date.now();
+for (let i = 0; i < 80; i++) { await sleep(500); if (await run('document.getElementById("loading")?.className.includes("done")')) break; }
+console.log(`caricamento: ${((Date.now() - t0) / 1000).toFixed(1)} s dopo l'avvio della finestra`);
 console.log(await run('JSON.stringify({ sim: !!window.__sim, gpu: window.__sim?.gpuName, quality: window.__sim?.quality, res: window.__sim?.resScale, loadingDone: document.getElementById("loading")?.className, lang: document.documentElement.lang })'));
 console.log('errori JS:', errors.length ? errors : 'nessuno');
 ws.close(); app.kill(); process.exit(errors.length ? 1 : 0);
