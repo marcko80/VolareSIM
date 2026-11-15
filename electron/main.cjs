@@ -1,0 +1,35 @@
+const { app, BrowserWindow, Menu } = require('electron');
+const path = require('path');
+
+// l'audio parte senza gesto dell'utente; il rendering non rallenta in background
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
+function createWindow() {
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    minWidth: 800,
+    minHeight: 500,
+    backgroundColor: '#bcd7ee',
+    title: 'VolareSIM',
+    autoHideMenuBar: true,
+    webPreferences: { contextIsolation: true, backgroundThrottling: false },
+  });
+  Menu.setApplicationMenu(null);
+  win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+
+  // F11: schermo intero
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.key === 'F11') {
+      win.setFullScreen(!win.isFullScreen());
+      event.preventDefault();
+    }
+  });
+}
+
+app.whenReady().then(() => {
+  createWindow();
+  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+});
+
+app.on('window-all-closed', () => app.quit());

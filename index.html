@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VolareSIM</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="cockpit-frame" class="hidden"></div>
+
+  <div id="warnings"></div>
+  <div id="message"></div>
+
+  <div id="panel">
+    <div class="nav"><b id="v-apt">—</b><small id="v-dest"></small></div>
+    <div class="row"><span>VELOCITÀ</span><b id="v-ias">0</b><i>kt</i></div>
+    <div class="row"><span>QUOTA</span><b id="v-alt">0</b><i>ft</i></div>
+    <div class="row"><span>V/S</span><b id="v-vs">0</b><i>ft/min</i></div>
+    <div class="row"><span>PRUA</span><b id="v-hdg">000</b><i>°</i></div>
+    <div class="row"><span>AGL</span><b id="v-agl">0</b><i>m</i></div>
+    <div class="bar"><span>MANETTA</span><div class="track"><div id="b-thr"></div></div><b id="v-thr">0%</b></div>
+    <div class="row"><span>FLAP</span><b id="v-flap">0</b><i>°</i></div>
+    <div class="row"><span>FRENI</span><b id="v-brake">-</b></div>
+  </div>
+
+  <canvas id="adi" width="180" height="180"></canvas>
+
+  <div id="help">
+    <b>COMANDI</b>
+    <table>
+      <tr><td>W / S</td><td>Picchia / Cabra</td></tr>
+      <tr><td>A / D</td><td>Rollio sx / dx</td></tr>
+      <tr><td>Q / E</td><td>Pedaliera sx / dx</td></tr>
+      <tr><td>Shift / Z</td><td>Manetta + / −</td></tr>
+      <tr><td>0 – 9</td><td>Manetta 0–90% (0 = 0, 9 = 100)</td></tr>
+      <tr><td>F / G</td><td>Flap giù / su</td></tr>
+      <tr><td>B / Spazio</td><td>Freni</td></tr>
+      <tr><td>C</td><td>Camera: inseguimento, cabina, cockpit, torre</td></tr>
+      <tr><td>Mouse (trascina)</td><td>Guarda attorno</td></tr>
+      <tr><td>K</td><td>Cambia aeroporto di partenza</td></tr>
+      <tr><td>P / R</td><td>Pausa / riparti</td></tr>
+      <tr><td>M</td><td>Audio on / off</td></tr>
+      <tr><td>I</td><td>Inverti asse beccheggio joystick</td></tr>
+      <tr><td>H</td><td>Mostra / nascondi aiuto</td></tr>
+    </table>
+    <div class="pad"><b>JOYSTICK / GAMEPAD</b><br>
+      Stick: beccheggio e rollio · stick dx o torsione: pedaliera<br>
+      Grilletti RT/LT o cursore: manetta · A o grilletto: freni<br>
+      RB/LB: flap · Y: camera · X: riparti · Start: pausa · Back: aeroporto</div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
