@@ -64,6 +64,7 @@ npm run app          # build + run the Electron app
 npm run dev          # Vite dev server (http://localhost:5173) for development
 npm run dist         # create installer + portable build in release/
 npm run fetch-data   # re-download the real terrain data (needs internet)
+node tools/fetch-ortho.mjs   # re-download the 50 cm AGEA orthophotos around the two airfields
 ```
 
 ## How to fly
@@ -116,7 +117,7 @@ Measured on a hybrid laptop at 1920 × 1080 with `node tools/perf.mjs` (NVIDIA G
 | **Window openings & livery** (`src/livery.js`) | A 2048 × 1024 texture set is computed once from signed-distance functions in fuselage space: paint, anti-aliased window alpha, glass alpha, gaskets, panel lines and the registration. The same mask cuts the exterior skin and an inset interior shell, so the cabin is a real enclosed volume you can see into and out of. |
 | **Cockpit** (`src/cockpit.js`) | Extruded dash, panel texture, seven dial canvases redrawn only when their value changes, chrome bezels and glass covers, two yokes that mirror stick input, throttle knob, seats, door trim and a cabin light. |
 | **Sky & lighting** (`src/sky.js`) | Atmospheric gradient, HDR sun disc and a cloud layer in one fragment shader; the same shader is baked to a PMREM environment map for reflections. Sun shadows are snapped to shadow-map texels to avoid shimmering. |
-| **Real data** (`tools/fetch-data.mjs`, `src/data.js`) | A one-off script downloads AWS Terrain Tiles (elevation), EOX Sentinel-2 cloudless 2016 (imagery) and Overpass/OpenStreetMap features, reprojects them to a local metric grid centred on the LIAP runway and writes `public/data/` (a 2048² height grid, a 3072² sharpened image, 1536² land-cover classes and an OSM JSON). The game reads these files at start-up. |
+| **Real data** (`tools/fetch-data.mjs`, `src/data.js`) | A one-off script downloads AWS Terrain Tiles (elevation), EOX Sentinel-2 cloudless 2016 (imagery) and Overpass/OpenStreetMap features, reprojects them to a local metric grid centred on the LIAP runway and writes `public/data/` (a 2048² height grid, a 3072² sharpened image, 1536² land-cover classes and an OSM JSON). High-resolution inset photos come from `tools/fetch-ortho.mjs` (AGEA 2012 orthophotos at 1 m/px around LIAP, 2 m/px over 8 km and around the grass airfield), blended into the terrain shader over the satellite base. The game reads these files at start-up. |
 | **Terrain** (`src/world.js`) | 24 × 24 chunks of 1.6 km on a budgeted queue (no hitches while flying), three LODs with skirts. A fragment shader takes the colour from the satellite, adds luminance grain from CC0 photo textures, a tileable noise texture at 3 scales and normal maps up close, then layers roads, water, rock on steep slopes and snow above 2,300 m. Trees are instanced per chunk: 3D models near, impostor billboards farther out. |
 | **Post-processing** (`src/postfx.js`) | EffectComposer: HDR half-float target → bloom → ACES output → SMAA or MSAA + grading. |
 | **Audio / input / i18n** | WebAudio synthesis (`src/audio.js`), keyboard + Gamepad API (`src/controls.js`), dictionary-based IT/EN (`src/i18n.js`). |
@@ -170,6 +171,6 @@ Pushing a tag such as `v0.5.0` makes GitHub Actions build the installer and atta
 
 Inspired by [web-flight-simulator](https://github.com/dimartarmizi/web-flight-simulator), reimagined for civil aviation. Built with [Three.js](https://threejs.org/), [Vite](https://vitejs.dev/) and [Electron](https://www.electronjs.org/).
 
-**Data**: satellite imagery © [EOX IT Services GmbH](https://s2maps.eu) (Sentinel-2 cloudless 2016, CC BY 4.0, contains modified Copernicus Sentinel data), elevation from [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/), map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) (ODbL). Land-cover classes are an automatic estimate and will not match reality everywhere. See `public/data/CREDITS.txt`.
+**Data**: orthophotos © AGEA 2012 (50 cm), served by the Italian Ministry of Environment national geoportal WMS (no usage restrictions declared; `tools/fetch-ortho.mjs`), satellite imagery © [EOX IT Services GmbH](https://s2maps.eu) (Sentinel-2 cloudless 2016, CC BY 4.0, contains modified Copernicus Sentinel data), elevation from [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/), map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) (ODbL). Land-cover classes are an automatic estimate and will not match reality everywhere. See `public/data/CREDITS.txt`.
 
 Terrain, tree and runway textures are CC0 scans from [ambientCG](https://ambientcg.com): Grass 004, Grass 001, Ground 037, Ground 106, Ground 111, Rock 051, Bark 014, Leaf 001, Pine Needles 001 and Asphalt 031 (see `public/textures/CREDITS.txt`).

@@ -109,9 +109,9 @@ const loadImage = (name) => new Promise((res, rej) => {
 async function loadAssets(renderer) {
   const aniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   const names = ['grass', 'meadow', 'forest', 'soil', 'dirt', 'rock', 'bark', 'asphalt'];
-  const imgs = await Promise.all([...names.map((n) => loadImage(`textures/${n}.jpg`)), loadImage('textures/grass_n.jpg'), loadImage('textures/rock_n.jpg'), loadImage('textures/leaf.jpg'), loadImage('textures/leaf_a.jpg'), loadImage('textures/needles_a.jpg'), loadImage('data/imagery.jpg')]);
+  const imgs = await Promise.all([...names.map((n) => loadImage(`textures/${n}.jpg`)), loadImage('textures/grass_n.jpg'), loadImage('textures/rock_n.jpg'), loadImage('textures/leaf.jpg'), loadImage('textures/leaf_a.jpg'), loadImage('textures/needles_a.jpg'), loadImage('data/imagery.jpg'), loadImage('data/ortho_a.jpg'), loadImage('data/ortho_b.jpg'), loadImage('data/ortho_c.jpg')]);
   const by = Object.fromEntries(names.map((n, i) => [n, imgs[i]]));
-  const [grassN, rockN, leaf, leafA, needlesA, imagery] = imgs.slice(names.length);
+  const [grassN, rockN, leaf, leafA, needlesA, imagery, orthoA, orthoB, orthoC] = imgs.slice(names.length);
   const tex = (img, srgb = true) => {
     const t = new THREE.Texture(img);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
@@ -172,6 +172,20 @@ async function loadAssets(renderer) {
   T.imagery.wrapS = T.imagery.wrapT = THREE.ClampToEdgeWrapping;
   T.imagery.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   T.imagery.needsUpdate = true;
+
+  // ortofoto AGEA 2012 (50 cm, ricampionate a 2 m) attorno ai due aeroporti
+  const ortho = (img) => {
+    const t = new THREE.Texture(img);
+    t.colorSpace = THREE.SRGBColorSpace; t.flipY = false;
+    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+    t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
+    t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    t.needsUpdate = true;
+    return t;
+  };
+  T.orthoA = ortho(orthoA);
+  T.orthoB = ortho(orthoB);
+  T.orthoC = ortho(orthoC);
 
   // classi di copertura (R bosco, G urbano, B roccia, A acqua)
   T.classes = new THREE.DataTexture(DATA.cls, DATA.CN, DATA.CN, THREE.RGBAFormat);
@@ -638,6 +652,12 @@ export async function createWorld(scene, renderer) {
     shader.uniforms.tImg = { value: assets.imagery };
     shader.uniforms.tCls = { value: assets.classes };
     shader.uniforms.tRoad = { value: assets.roads };
+    shader.uniforms.tOA = { value: assets.orthoA };
+    shader.uniforms.tOB = { value: assets.orthoB };
+    shader.uniforms.tOC = { value: assets.orthoC };
+    shader.uniforms.uOC = { value: new THREE.Vector4(-2000, -2000, 4000, 4000) };
+    shader.uniforms.uOA = { value: new THREE.Vector4(-4000, -4000, 8000, 8000) };
+    shader.uniforms.uOB = { value: new THREE.Vector4(14000, 5200, 6000, 6000) };
     shader.uniforms.uExt = { value: new THREE.Vector4(ext.x0, ext.z0, ext.x1 - ext.x0, ext.z1 - ext.z0) };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;')
@@ -645,9 +665,9 @@ export async function createWorld(scene, renderer) {
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         varying vec3 vWPos;
-        uniform sampler2D t_grass, t_forest, t_rock, t_asphalt, n_grass, n_rock, tImg, tCls, tRoad, tNoise;
+        uniform sampler2D t_grass, t_forest, t_rock, t_asphalt, n_grass, n_rock, tImg, tCls, tRoad, tNoise, tOA, tOB, tOC;
         uniform vec3 a_grass, a_forest, a_rock, a_asphalt;
-        uniform vec4 uExt;
+        uniform vec4 uExt, uOA, uOB, uOC;
         float gRock, gNear, gFar;
         #if TQ >= 1
         vec3 TX(sampler2D t, vec2 p, float s, vec3 avg){
@@ -672,6 +692,25 @@ export async function createWorld(scene, renderer) {
           base *= vec3(1.08, 1.0, 0.86);                       // via il cast ciano, verdi più caldi
           base = pow(max(base, vec3(0.0)), vec3(0.72)) * 0.95;
           base = mix(base, base * base * 2.0, 0.25);          // un po' più di contrasto: via l'effetto lavato
+          // ortofoto reale ad alta risoluzione dentro le finestre degli aeroporti, sfumata ai bordi
+          float oMask = 0.0;
+          {
+            vec2 qa = (p - uOA.xy) / uOA.zw, qb = (p - uOB.xy) / uOB.zw;
+            vec2 ea = min(qa, 1.0 - qa), eb = min(qb, 1.0 - qb);
+            float wa = smoothstep(0.0, 0.06, min(ea.x, ea.y)), wb = smoothstep(0.0, 0.07, min(eb.x, eb.y));
+            vec3 oc = vec3(0.0);
+            if (wa > 0.0) oc = texture2D(tOA, qa).rgb * wa;
+            if (wb > 0.0) oc += texture2D(tOB, qb).rgb * wb;
+            oMask = min(wa + wb, 1.0);
+            vec2 qc = (p - uOC.xy) / uOC.zw, ec = min(qc, 1.0 - qc);
+            float wc = smoothstep(0.0, 0.05, min(ec.x, ec.y));
+            if (oMask > 0.0) {
+              oc /= max(wa + wb, 1e-3);
+              if (wc > 0.0) { vec3 o2 = texture2D(tOC, qc).rgb; oc = mix(oc, o2, wc); oMask = max(oMask, wc); }
+              oc = pow(oc, vec3(0.92)) * 1.03; oc = mix(oc, oc * oc * 1.7, 0.15);
+              base = mix(base, oc, oMask);
+            }
+          }
           vec4 cl = texture2D(tCls, uvw);                // bosco, urbano, roccia, acqua
           vec2 rd = texture2D(tRoad, uvw).rg;            // strade, acque
           float forest = cl.r, urban = cl.g, rockC = cl.b, water = max(cl.a, rd.g);
@@ -681,24 +720,25 @@ export async function createWorld(scene, renderer) {
           float detail = dot(TX(t_grass, p, 5.2, a_grass), LW) / max(dot(a_grass, LW), 0.02);
           if (forest > 0.02) detail = mix(detail, dot(TX(t_forest, p, 4.8, a_forest), LW) / max(dot(a_forest, LW), 0.02), clamp(forest * 1.2, 0.0, 1.0));
           float dtl = clamp((detail - 1.0) * 2.1 + 1.0, 0.3, 2.2);   // grana più marcata
-          vec3 col = base * mix(1.0, dtl, 1.0 - 0.5 * gFar);
+          float gk = 1.0 - 0.65 * oMask;   // la foto ha già il suo dettaglio: meno grana procedurale
+          vec3 col = base * mix(1.0, mix(1.0, dtl, gk), 1.0 - 0.5 * gFar);
           // microvariazione a media distanza: spezza la sfocatura dei pixel satellitari (12 m)
 // variazioni a più scale: ciuffi (~1.5 m), chiazze (~8 m), macchie (~40 m); più forti nel bosco
           mat2 R1 = mat2(0.8, -0.6, 0.6, 0.8), R2 = mat2(0.6, 0.8, -0.8, 0.6);
           vec4 n1 = texture2D(tNoise, R1 * p / 38.0), n2 = texture2D(tNoise, R2 * p / 9.0 + 0.31), n3 = texture2D(tNoise, R1 * p / 3.3 + 0.67);
-          float amp = 1.0 - 0.35 * gFar;
+          float amp = (1.0 - 0.35 * gFar) * (1.0 - 0.7 * oMask);
           col *= clamp(1.0 + amp * ((n1.r - 0.5) * 1.5 + (n2.g - 0.5) * 2.2 + (n3.b - 0.5) * 2.6 * (1.0 - 0.7 * gFar) + forest * (n2.r - 0.5) * 1.2), 0.45, 1.7);
           // roccia sulle pendenze: dalla normale interpolata
           vec3 wn = normalize(vNormal * mat3(viewMatrix));
           float slope = 1.0 - clamp(wn.y, 0.0, 1.0);
           gRock = clamp(rockC * 0.9 + smoothstep(0.38, 0.6, slope) * 0.8, 0.0, 1.0);
-          if (gRock > 0.02) col = mix(col, base * clamp(dot(TX(t_rock, p, 7.5, a_rock), LW) / max(dot(a_rock, LW), 0.02), 0.4, 2.0) * 1.05, gRock * 0.75);
+          if (gRock > 0.02) col = mix(col, base * clamp(dot(TX(t_rock, p, 7.5, a_rock), LW) / max(dot(a_rock, LW), 0.02), 0.4, 2.0) * 1.05, gRock * 0.75 * (1.0 - 0.92 * oMask));
           // zone urbane: tono neutro con grana d'asfalto
-          if (urban > 0.02) col = mix(col, base * clamp(dot(TX(t_asphalt, p, 3.0, a_asphalt), LW) / max(dot(a_asphalt, LW), 0.02), 0.4, 2.0) * 1.1, urban * 0.55);
+          if (urban > 0.02) col = mix(col, base * clamp(dot(TX(t_asphalt, p, 3.0, a_asphalt), LW) / max(dot(a_asphalt, LW), 0.02), 0.4, 2.0) * 1.1, urban * 0.55 * (1.0 - oMask));
           // strade
-          col = mix(col, vec3(0.10, 0.10, 0.11) * (0.8 + 0.5 * texture2D(t_asphalt, p / 2.0).r * 3.0), clamp(rd.r * 1.3, 0.0, 0.8));
+          col = mix(col, vec3(0.10, 0.10, 0.11) * (0.8 + 0.5 * texture2D(t_asphalt, p / 2.0).r * 3.0), clamp(rd.r * 1.3, 0.0, 0.8) * (1.0 - 0.9 * oMask));
           // acqua
-          col = mix(col, vec3(0.012, 0.045, 0.06), clamp(water * 1.3, 0.0, 0.92));
+          col = mix(col, vec3(0.012, 0.045, 0.06), clamp(water * 1.3, 0.0, 0.92) * (1.0 - 0.6 * oMask));
           // neve in quota
           col = mix(col, vec3(0.8, 0.82, 0.86), smoothstep(2300.0, 2650.0, vWPos.y) * (1.0 - smoothstep(0.35, 0.55, slope)));
           diffuseColor.rgb = col;
