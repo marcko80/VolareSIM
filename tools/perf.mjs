@@ -40,7 +40,7 @@ for (const cam of [0, 1]) {
   for (const q of [2, 1, 0]) {
     await run(setup(cam));
     await run(`window.__sim.setQuality(${q})`);
-    await sleep(2500);
+    await sleep(6500);
     console.log(`camera=${['chase', 'cockpit'][cam]} qualità=${['bassa', 'media', 'alta'][q]}:`, await run(measure), 'resScale=' + (await run('window.__sim.resScale')));
   }
 }

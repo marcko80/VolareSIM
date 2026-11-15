@@ -1,0 +1,15 @@
+Texture CC0 (Creative Commons Zero) da ambientCG - https://ambientcg.com
+
+grass.jpg, grass_n.jpg     Grass 004   https://ambientcg.com/view?id=Grass004
+meadow.jpg                 Grass 001   https://ambientcg.com/view?id=Grass001
+forest.jpg                 Ground 037  https://ambientcg.com/view?id=Ground037
+soil.jpg                   Ground 106  https://ambientcg.com/view?id=Ground106
+dirt.jpg                   Ground 111  https://ambientcg.com/view?id=Ground111
+rock.jpg, rock_n.jpg       Rock 051    https://ambientcg.com/view?id=Rock051
+bark.jpg                   Bark 014    https://ambientcg.com/view?id=Bark014
+leaf.jpg, leaf_a.jpg       Leaf 001    https://ambientcg.com/view?id=Leaf001
+needles_a.jpg              Pine Needles 001  https://ambientcg.com/view?id=PineNeedles001
+asphalt.jpg                Asphalt 031 https://ambientcg.com/view?id=Asphalt031
+
+Licenza CC0 1.0: uso libero, anche commerciale, senza obbligo di attribuzione (data comunque per gratitudine).
+Le texture sono ridimensionate/convertite solo come originali 1K JPG; nessuna modifica ai file.

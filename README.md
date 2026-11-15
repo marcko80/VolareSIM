@@ -23,7 +23,7 @@
 | 🛩️ **A real airframe, not boxes** | Lofted fuselage with real window openings and an inner shell, tapered NACA 2412 wing with dihedral, hinged flaps, ailerons, elevators and rudder, wheel pants, twisted propeller, navigation lights and strobes, registration painted on the skin |
 | 🎛️ **3D cockpit** | Instrument panel with working airspeed, attitude, altimeter, heading, vertical speed and RPM dials, radio stack and GPS, two linked yokes, throttle and mixture, seats, door panels. Look around with the mouse, zoom with the wheel |
 | 🌅 **Physically based rendering** | HDR pipeline, ACES tone mapping, bloom, reflections from an image-based sky environment, texel-snapped sun shadows that even fall inside the cabin |
-| ☁️ **Procedural sky and terrain** | Shader sky with drifting clouds and an HDR sun; 26 × 26 km terrain in LOD chunks with farmland patchwork, crop rows, rock on slopes, forests and instanced trees; sea beyond the coast |
+| ☁️ **Procedural sky, photographic terrain** | Shader sky with drifting clouds and an HDR sun; 26 × 26 km terrain in LOD chunks blended from real CC0 photo textures (grass, meadow, forest floor, ploughed soil, rock) with soft, irregular transitions; forests of textured conifers and broadleaf trees (real bark, leaf and needle textures); photographic asphalt on runways; sea beyond the coast |
 | 🌍 **Two airports** | *Volare Intl* (sea level, 1200 m) and *Monte Alto* (90 m, 900 m, heading 060°) about 9 km apart, with terminals, arched hangar, control tower, fuel tanks, PAPI, edge lights, windsock, beacons and parked aircraft |
 | ⚡ **Adaptive performance** | Detects integrated GPUs and scales render resolution (55–100 %) on the fly, then drops quality level if needed; press <kbd>V</kbd> to choose manually |
 | 🔊 **Synthesized sound** | Four-cylinder engine tied to RPM, propeller, wind, tyre roll, stall horn and touchdown thump — no audio files |
@@ -100,10 +100,10 @@ npm run dist         # create installer + portable build in release/
 | Level | Pipeline | Intended for |
 |---|---|---|
 | **Low** | direct rendering, 1024² shadows, shorter tree and LOD distances, simplified terrain shader | weak or integrated GPUs |
-| **Medium** | HDR render target, bloom, ACES, SMAA, 2048² shadows | default on integrated GPUs |
-| **High** | as Medium with 4× MSAA, vignette and grading, 4096² shadows, full terrain detail | discrete GPUs |
+| **Medium** | HDR render target, bloom, ACES, SMAA, 2048² shadows | default on most GPUs |
+| **High** | as Medium with 4× MSAA, vignette and grading, 4096² shadows, tree shadows near the plane, full terrain detail | high-end GPUs (default on RTX / Radeon RX 5000+) |
 
-Measured on a hybrid laptop at 1920 × 1080 with `node tools/perf.mjs`: on its **NVIDIA GTX 1050** the simulator holds a locked 60 fps on every level (High in the cockpit ≈ 59 fps); on the same machine's **Intel UHD 630** (integrated) it reaches about 40 fps on Medium with adaptive resolution, 42–50 fps on Low and 20–25 fps on High. Resolution scales between 55 % and 100 % automatically to hold the frame rate; the HUD stays crisp.
+Measured on a hybrid laptop at 1920 × 1080 with `node tools/perf.mjs` (NVIDIA GTX 1050): Low holds 60 fps, Medium 46–60 fps and High about 35–42 fps. The simulator also detects the GPU, asks Windows for the high-performance one, and scales the render resolution between 55 % and 100 % on the fly to keep the frame rate; the HUD stays crisp. Use <kbd>V</kbd> to pick a level.
 
 ## Under the hood
 
@@ -114,7 +114,7 @@ Measured on a hybrid laptop at 1920 × 1080 with `node tools/perf.mjs`: on its *
 | **Window openings & livery** (`src/livery.js`) | A 2048 × 1024 texture set is computed once from signed-distance functions in fuselage space: paint, anti-aliased window alpha, glass alpha, gaskets, panel lines and the registration. The same mask cuts the exterior skin and an inset interior shell, so the cabin is a real enclosed volume you can see into and out of. |
 | **Cockpit** (`src/cockpit.js`) | Extruded dash, panel texture, seven dial canvases redrawn only when their value changes, chrome bezels and glass covers, two yokes that mirror stick input, throttle knob, seats, door trim and a cabin light. |
 | **Sky & lighting** (`src/sky.js`) | Atmospheric gradient, HDR sun disc and a cloud layer in one fragment shader; the same shader is baked to a PMREM environment map for reflections. Sun shadows are snapped to shadow-map texels to avoid shimmering. |
-| **Terrain** (`src/world.js`) | 16 × 16 chunks of 1.6 km, three LODs (64/32/16 segments) with skirts, analytic normals, a fragment shader adding multi-scale detail, farmland patchwork with crop rows and slope-based rock. Trees (conifer, broadleaf, shrub) are instanced per chunk and clustered by a forest-density field. Terrain is flattened around airports. |
+| **Terrain** (`src/world.js`) | 16 × 16 chunks of 1.6 km built on a budgeted queue (no hitches while flying), three LODs (64/32/16 segments) with skirts and analytic normals. A fragment shader blends six CC0 photo textures with a tileable noise texture (zones, farmland, forest floor), two-scale sampling to hide tiling, normal maps up close, and falls back to precomputed average colours with distance. Trees (conifer, broadleaf, shrub) are instanced per chunk with separate bark and foliage textures built from real leaf and needle scans, and clustered by a forest-density field. Terrain is flattened around airports. |
 | **Post-processing** (`src/postfx.js`) | EffectComposer: HDR half-float target → bloom → ACES output → SMAA or MSAA + grading. |
 | **Audio / input / i18n** | WebAudio synthesis (`src/audio.js`), keyboard + Gamepad API (`src/controls.js`), dictionary-based IT/EN (`src/i18n.js`). |
 
@@ -165,3 +165,5 @@ Pushing a tag such as `v0.5.0` makes GitHub Actions build the installer and atta
 ## Credits
 
 Inspired by [web-flight-simulator](https://github.com/dimartarmizi/web-flight-simulator), reimagined for civil aviation. Built with [Three.js](https://threejs.org/), [Vite](https://vitejs.dev/) and [Electron](https://www.electronjs.org/).
+
+Terrain, tree and runway textures are CC0 scans from [ambientCG](https://ambientcg.com): Grass 004, Grass 001, Ground 037, Ground 106, Ground 111, Rock 051, Bark 014, Leaf 001, Pine Needles 001 and Asphalt 031 (see `public/textures/CREDITS.txt`).

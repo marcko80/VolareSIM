@@ -25,7 +25,7 @@ document.getElementById('app').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.4, 40000);
 
-const world = createWorld(scene, renderer);
+const world = await createWorld(scene, renderer);
 const plane = createCessna();
 scene.add(plane.group);
 const cockpit = createCockpit();
@@ -48,13 +48,17 @@ const flight = new Flight((ev) => {
 
 // ---------------------------------------------------------------- qualità grafica
 const QUALITY = ['qLow', 'qMed', 'qHigh'];
+let holdUntil = 0; // dopo ogni cambio di qualità/risoluzione il controllo adattivo resta fermo (ricompilazione shader)
 // GPU integrata (Intel UHD/Iris): parte da qualità media e risoluzione ridotta; la risoluzione si adatta da sola
 const gpuName = (() => {
   try { const gl = renderer.getContext(); const e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? String(gl.getParameter(e.UNMASKED_RENDERER_WEBGL)) : ''; } catch { return ''; }
 })();
 const integrated = /intel/i.test(gpuName) && !/\barc\b/i.test(gpuName);
-let quality = integrated ? 1 : 2;
-try { const q = parseInt(localStorage.getItem('volaresim.quality'), 10); if (q >= 0 && q <= 2) quality = q; } catch { /* ignora */ }
+// livello predefinito: Alta solo su GPU di fascia alta (RTX, Radeon RX serie 5000+); altrimenti Media
+const highEnd = /RTX|RX ?[5-9]\d{3}|Radeon Pro W|Apple/i.test(gpuName);
+let quality = highEnd ? 2 : 1;
+// la chiave è nuova: le versioni precedenti salvavano anche il livello predefinito, non solo le scelte manuali
+try { const q = parseInt(localStorage.getItem('volaresim.quality.v2'), 10); if (q >= 0 && q <= 2) quality = q; } catch { /* ignora */ }
 const basePR = Math.min(window.devicePixelRatio, 2);
 let resScale = integrated ? 0.75 : 1;
 function applyResolution() {
@@ -62,13 +66,14 @@ function applyResolution() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   post?.setSize(window.innerWidth, window.innerHeight);
 }
-function applyQuality(level, announce) {
+function applyQuality(level, announce, persist = false) {
   quality = level;
+  holdUntil = performance.now() / 1000 + 4;
   if (post) { post.dispose(); post = null; }
   if (level > 0) post = new PostFX(renderer, scene, camera, level);
   world.setQuality(level);
   applyResolution();
-  try { localStorage.setItem('volaresim.quality', String(level)); } catch { /* ignora */ }
+  if (persist) { try { localStorage.setItem('volaresim.quality.v2', String(level)); } catch { /* ignora */ } }
   if (announce) hud.message(t('quality'), t(QUALITY[level]), 'ok', 1.5);
 }
 
@@ -116,7 +121,7 @@ const controls = new Controls(flight, {
   mute: () => { audio.start(); hud.message(t('audio'), t(audio.toggleMute() ? 'audioOff' : 'audioOn'), 'ok', 1.2); },
   notify: (key, d, raw) => hud.message(t(key), raw ? d : t(d), 'ok', 2.5),
   lang: () => { toggleLang(); hud.message(t('language'), t('langName'), 'ok', 1.2); },
-  quality: () => applyQuality((quality + 2) % 3, true),
+  quality: () => applyQuality((quality + 2) % 3, true, true),
 });
 
 const wake = () => audio.start();
@@ -237,21 +242,27 @@ function frame(now) {
   plane.animate({ ...flight.input, flapDeg: flight.flapDeg, time, rpmNorm });
   cockpit.update(flight);
 
+  const t0 = performance.now();
   updateCamera(dt);
   world.update(flight.pos, camera, dt, time);
+  const t1 = performance.now();
   updateNav();
   hud.update(flight, dt, paused);
   audio.update(flight, dt, paused, CAMERAS[camIndex].id === 'cockpit');
+  const t2 = performance.now();
   if (post) post.render(dt); else renderer.render(scene, camera);
+  const t3 = performance.now();
+  const P = window.__prof;
+  if (P) { P.world = Math.max(P.world, t1 - t0); P.ui = Math.max(P.ui, t2 - t1); P.render = Math.max(P.render, t3 - t2); }
 
   // qualità adattiva: se il frame rate resta basso per qualche secondo, scende di un livello
   frames++;
-  if (adaptive && frames > 150 && !paused && document.visibilityState === 'visible') {
+  if (adaptive && frames > 150 && performance.now() / 1000 > holdUntil && !paused && document.visibilityState === 'visible') {
     winT += dt; winN++;
     if (winT >= 1.5) {
       const avg = winT / winN;
       winT = 0; winN = 0;
-      if (avg > 0.027) {                       // sotto ~37 fps
+      if (avg > 0.0245) {                      // sotto ~41 fps
         highCount = 0;
         if (resScale > 0.56) { resScale = Math.max(0.55, resScale * 0.88); applyResolution(); lowCount = 0; }
         else if (++lowCount >= 2 && quality > 0) { lowCount = 0; resScale = 0.8; applyQuality(quality - 1, true); }

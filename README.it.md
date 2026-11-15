@@ -23,7 +23,7 @@
 | 🛩️ **Una vera cellula, non scatole** | Fusoliera loftata con finestrini aperti e guscio interno, ala rastremata NACA 2412 con diedro, flap, alettoni, equilibratori e timone cernierati, carenature delle ruote, elica svergolata, luci di navigazione e strobo, marche dipinte sulla pelle |
 | 🎛️ **Cockpit 3D** | Cruscotto con anemometro, orizzonte, altimetro, prua, variometro e giri motore funzionanti, pila radio e GPS, due volantini collegati, manetta e miscela, sedili, pannelli porta. Guardi attorno col mouse, zoom con la rotella |
 | 🌅 **Rendering fisicamente basato** | Pipeline HDR, tone mapping ACES, bloom, riflessi da un ambiente basato sul cielo, ombre del sole agganciate ai texel che cadono perfino dentro l'abitacolo |
-| ☁️ **Cielo e terreno procedurali** | Cielo in shader con nuvole in movimento e sole HDR; terreno di 26 × 26 km a chunk con LOD, campi coltivati con file di colture, roccia sulle pendenze, foreste e alberi istanziati; mare oltre la costa |
+| ☁️ **Cielo procedurale, terreno fotografico** | Cielo in shader con nuvole in movimento e sole HDR; terreno di 26 × 26 km a chunk con LOD, composto da vere texture fotografiche CC0 (erba, prato, sottobosco, terra arata, roccia) con transizioni morbide e irregolari; foreste di conifere e latifoglie con texture reali di corteccia, foglie e aghi; asfalto fotografico sulle piste; mare oltre la costa |
 | 🌍 **Due aeroporti** | *Volare Intl* (livello del mare, 1200 m) e *Monte Alto* (90 m, 900 m, prua 060°) a circa 9 km di distanza, con terminal, hangar ad arco, torre, serbatoi, PAPI, luci di pista, manica a vento, fari e aerei parcheggiati |
 | ⚡ **Prestazioni adattive** | Riconosce le GPU integrate e adatta la risoluzione di rendering (55–100 %) al volo, poi riduce il livello di qualità se serve; con <kbd>V</kbd> scegli a mano |
 | 🔊 **Suoni sintetizzati** | Motore a quattro cilindri legato ai giri, elica, vento, rotolamento, cicalino di stallo e tonfo del contatto: nessun file audio |
@@ -100,10 +100,10 @@ npm run dist         # crea installer e versione portable in release/
 | Livello | Pipeline | Pensato per |
 |---|---|---|
 | **Bassa** | rendering diretto, ombre 1024², distanze di alberi e LOD ridotte, shader del terreno semplificato | GPU deboli o integrate |
-| **Media** | target HDR, bloom, ACES, SMAA, ombre 2048² | predefinita sulle GPU integrate |
-| **Alta** | come Media con MSAA 4×, vignettatura e grading, ombre 4096², terreno al massimo dettaglio | GPU dedicate |
+| **Media** | target HDR, bloom, ACES, SMAA, ombre 2048² | predefinita sulla maggior parte delle GPU |
+| **Alta** | come Media con MSAA 4×, vignettatura e grading, ombre 4096², ombre degli alberi vicino all'aereo, terreno al massimo dettaglio | GPU di fascia alta (predefinita su RTX / Radeon RX 5000+) |
 
-Misurato su un portatile ibrido a 1920 × 1080 con `node tools/perf.mjs`: con la **NVIDIA GTX 1050** il simulatore tiene 60 fps fissi a ogni livello (Alta in cockpit ≈ 59 fps); con la **Intel UHD 630** (integrata) della stessa macchina arriva a circa 40 fps in Media con risoluzione adattiva, 42–50 fps in Bassa e 20–25 fps in Alta. La risoluzione varia da sola tra il 55 % e il 100 % per mantenere il frame rate; l'HUD resta nitido.
+Misurato su un portatile ibrido a 1920 × 1080 con `node tools/perf.mjs` (NVIDIA GTX 1050): in Bassa 60 fps, in Media 46–60 fps e in Alta circa 35–42 fps. Il simulatore riconosce la GPU, chiede a Windows quella ad alte prestazioni e adatta da solo la risoluzione di rendering tra il 55 % e il 100 % per mantenere il frame rate; l'HUD resta nitido. Con <kbd>V</kbd> scegli il livello.
 
 ## Come funziona
 
@@ -114,7 +114,7 @@ Misurato su un portatile ibrido a 1920 × 1080 con `node tools/perf.mjs`: con la
 | **Finestrini e livrea** (`src/livery.js`) | Un set di texture 2048 × 1024 è calcolato una volta da funzioni di distanza con segno nello spazio della fusoliera: vernice, alfa dei finestrini anti-alias, alfa del vetro, guarnizioni, linee dei pannelli e marche. La stessa maschera buca la pelle esterna e un guscio interno rientrante: la cabina è un volume chiuso in cui si vede dentro e fuori. |
 | **Cockpit** (`src/cockpit.js`) | Cruscotto estruso, texture del pannello, sette quadranti su canvas ridisegnati solo quando il valore cambia, ghiere cromate e vetrini, due volantini che ripetono i comandi, manetta, sedili, rivestimenti e una luce d'abitacolo. |
 | **Cielo e luce** (`src/sky.js`) | Gradiente atmosferico, disco solare HDR e strato di nubi in un solo fragment shader; lo stesso shader è cotto in una mappa ambiente PMREM per i riflessi. Le ombre del sole sono agganciate ai texel della shadow map per evitare lo sfarfallio. |
-| **Terreno** (`src/world.js`) | 16 × 16 chunk da 1,6 km, tre LOD (64/32/16 segmenti) con gonne, normali analitiche, un fragment shader che aggiunge dettaglio multiscala, campi coltivati con file di colture e roccia sulle pendenze. Gli alberi (conifere, latifoglie, arbusti) sono istanziati per chunk e raggruppati da un campo di densità dei boschi. Il terreno è livellato attorno agli aeroporti. |
+| **Terreno** (`src/world.js`) | 16 × 16 chunk da 1,6 km generati con una coda a budget (niente scatti in volo), tre LOD (64/32/16 segmenti) con gonne e normali analitiche. Un fragment shader miscela sei texture fotografiche CC0 con una texture di rumore tileable (zone, campi, sottobosco), campionamento a due scale per nascondere la ripetizione, normal map da vicino e colori medi precalcolati da lontano. Gli alberi (conifere, latifoglie, arbusti) sono istanziati per chunk con texture separate per corteccia e chioma, costruite da scansioni reali di foglie e aghi, e raggruppati da un campo di densità dei boschi. Il terreno è livellato attorno agli aeroporti. |
 | **Post-processing** (`src/postfx.js`) | EffectComposer: target HDR half-float → bloom → uscita ACES → SMAA oppure MSAA + grading. |
 | **Audio / input / i18n** | Sintesi WebAudio (`src/audio.js`), tastiera + Gamepad API (`src/controls.js`), traduzioni IT/EN basate su dizionario (`src/i18n.js`). |
 
@@ -165,3 +165,5 @@ Pubblicando un tag come `v0.5.0`, GitHub Actions compila l'installer e lo allega
 ## Crediti
 
 Ispirato a [web-flight-simulator](https://github.com/dimartarmizi/web-flight-simulator), reinterpretato per l'aviazione civile. Realizzato con [Three.js](https://threejs.org/), [Vite](https://vitejs.dev/) ed [Electron](https://www.electronjs.org/).
+
+Le texture di terreno, alberi e piste sono scansioni CC0 di [ambientCG](https://ambientcg.com): Grass 004, Grass 001, Ground 037, Ground 106, Ground 111, Rock 051, Bark 014, Leaf 001, Pine Needles 001 e Asphalt 031 (vedi `public/textures/CREDITS.txt`).

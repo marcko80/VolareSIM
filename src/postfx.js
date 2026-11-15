@@ -49,6 +49,8 @@ export class PostFX {
   render(dt) { this.composer.render(dt); }
 
   dispose() {
-    try { this.composer.dispose(); } catch { /* ignora */ }
+    // libera davvero tutti i render target (passi, bloom, SMAA e i due buffer del composer)
+    for (const p of this.composer.passes) { try { p.dispose?.(); } catch { /* ignora */ } }
+    try { this.composer.renderTarget1.dispose(); this.composer.renderTarget2.dispose(); } catch { /* ignora */ }
   }
 }
