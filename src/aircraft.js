@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { buildFuselage, liftingSurface, tubeBetween } from './geometry.js';
 import { getFuselageTextures, stripeTable } from './livery.js';
 import { pbr, skinDetail, acTex } from './materials.js';
+import { addLivery } from './decals.js';
 
 /**
  * Cessna 172 procedurale. Convenzione: avanti = -Z, su = +Y, destra = +X, origine = baricentro.
@@ -45,7 +46,7 @@ export function createCessna() {
 
   // ---------------------------------------------------------------- fusoliera
   const fusGeo = buildFuselage({ rings: 220, seg: 96 });
-  add(group, fusGeo, skinMat);
+  const fusMesh = add(group, fusGeo, skinMat);
   const glass = new THREE.Mesh(fusGeo, glassMat);
   glass.renderOrder = 2;
   glass.scale.setScalar(1.002); // leggermente fuori dalla pelle: niente z-fighting sui bordi
@@ -76,10 +77,10 @@ export function createCessna() {
     zTE: Z_TE, chord: s < 2.9 ? 1.62 : 1.62 - (0.5 * (s - 2.9)) / (HALF - 2.9), y: Y_W + 0.026 * s,
   });
   const naca = [0.12, 0.02, 0.4];
-  const parts = {};
+  const parts = {}, wingMesh = {};
   for (const side of [-1, 1]) {
     const mk = (piece, s0, s1, extra = {}) => liftingSurface({ planform: wingPlan, s0, s1, steps: Math.max(2, Math.round((s1 - s0) * 2)), naca, piece, hinge: HINGE, side, ...extra });
-    add(group, mk('main', 0, HALF, { tip: 0.18 }).geometry, white);
+    wingMesh[side] = add(group, mk('main', 0, HALF, { tip: 0.18 }).geometry, white);
     add(group, mk('te', 0, 0.55).geometry, white);
     add(group, mk('te', 5.34, HALF, { tip: 0.18 }).geometry, white);
     for (const [name, s0, s1] of [['flap', 0.6, 2.95], ['ail', 3.05, 5.3]]) {
@@ -126,7 +127,7 @@ export function createCessna() {
   group.add(finG);
   const finPlan = (s) => ({ zTE: 4.25, chord: 1.12 - (0.62 * s) / 1.25, y: 0 });
   const finOpts = { planform: finPlan, s0: 0, s1: 1.25, steps: 6, naca: [0.09, 0, 0], hinge: 0.4, n: 16, tip: 0.1 };
-  add(finG, liftingSurface({ ...finOpts, piece: 'main' }).geometry, white);
+  const finMesh = add(finG, liftingSurface({ ...finOpts, piece: 'main' }).geometry, white);
   const rudPart = liftingSurface({ ...finOpts, piece: 'te', pivotize: true });
   const rudG = new THREE.Group();
   rudG.position.copy(rudPart.pivot);
@@ -201,6 +202,7 @@ export function createCessna() {
   prop.add(disc);
   group.add(prop);
 
+  addLivery(group, { fin: finMesh, wingL: wingMesh[-1], wingR: wingMesh[1], fus: fusMesh });
   group.traverse((o) => { if (o.isMesh && o !== shell && o !== glass) o.receiveShadow = true; });
   shell.castShadow = false; shell.receiveShadow = true;
 
