@@ -1,6 +1,6 @@
 // Ortofoto ad alta risoluzione (AGEA 2012 a colori, pixel nativo 50 cm) dal WMS del Geoportale Nazionale (MASE/PCN):
 // nessuna condizione d'uso ("Fees: nessuna condizione applicata", "AccessConstraints: nessuno").
-// Scarica due finestre attorno ai due aeroporti, ricampionate a 2 m/px (1 m/px nel nucleo di 4 km di LIAP) → public/data/ortho_a/b/c.jpg
+// Scarica due finestre attorno ai due aeroporti, ricampionate a 2 m/px (1 m/px nel nucleo di 4 km di LIAP) → public/data/ortho_a..e.jpg (d, e: comune di Lucoli)
 // Uso: node tools/fetch-ortho.mjs   (dopo tools/fetch-data.mjs; i tile restano in tools/.cache)
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -21,6 +21,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export const INSETS = [
   { name: 'ortho_a', cx: 0, cz: 0, half: 4000, n: 4096 },
   { name: 'ortho_c', cx: 0, cz: 0, half: 2000, n: 4096 },
+  { name: 'ortho_d', cx: 5500, cz: 10500, half: 6500, n: 4096 },   // comune di Lucoli (≈3 m/px)
+  { name: 'ortho_e', cx: 2500, cz: 9000, half: 2000, n: 4096 },    // Lucoli: Collimento, Prata, Vado, Lucoli Alto (1 m/px)
   { name: 'ortho_b', cx: 17000, cz: 8200, half: 3000, n: 3072 },
 ];
 
@@ -29,12 +31,12 @@ async function getTile(x0, z0, x1, z1, w, key) {
   if (existsSync(f)) return readFileSync(f);
   const [latN, lonW] = toLL(x0, z0), [latS, lonE] = toLL(x1, z1);
   const url = `${WMS}&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${LAYER}&STYLES=&SRS=EPSG:4326&BBOX=${lonW},${latS},${lonE},${latN}&WIDTH=${w}&HEIGHT=${w}&FORMAT=image/jpeg`;
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 12; i++) {
     try {
       const r = await fetch(url, { headers: { 'User-Agent': 'VolareSIM-data-prep/1.0' } });
-      if (r.ok && (r.headers.get('content-type') || '').includes('jpeg')) { const b = Buffer.from(await r.arrayBuffer()); writeFileSync(f, b); return b; }
+      if (r.ok && (r.headers.get('content-type') || '').includes('jpeg')) { const b = Buffer.from(await r.arrayBuffer()); writeFileSync(f, b); await sleep(400); return b; }
     } catch { /* riprova */ }
-    await sleep(1000 * (i + 1));
+    await sleep(1500 * (i + 1));
   }
   throw new Error('tile fallito ' + key);
 }

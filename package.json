@@ -1,7 +1,7 @@
 {
   "name": "volaresim",
   "productName": "VolareSIM",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Civil flight simulator (Cessna) over the real terrain of L'Aquila, Italy - Three.js + Electron",
   "author": "marcko80",
   "private": true,

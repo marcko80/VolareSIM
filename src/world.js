@@ -109,9 +109,9 @@ const loadImage = (name) => new Promise((res, rej) => {
 async function loadAssets(renderer) {
   const aniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   const names = ['grass', 'meadow', 'forest', 'soil', 'dirt', 'rock', 'bark', 'asphalt'];
-  const imgs = await Promise.all([...names.map((n) => loadImage(`textures/${n}.jpg`)), loadImage('textures/grass_n.jpg'), loadImage('textures/rock_n.jpg'), loadImage('textures/leaf.jpg'), loadImage('textures/leaf_a.jpg'), loadImage('textures/needles_a.jpg'), loadImage('data/imagery.jpg'), loadImage('data/ortho_a.jpg'), loadImage('data/ortho_b.jpg'), loadImage('data/ortho_c.jpg')]);
+  const imgs = await Promise.all([...names.map((n) => loadImage(`textures/${n}.jpg`)), loadImage('textures/grass_n.jpg'), loadImage('textures/rock_n.jpg'), loadImage('textures/leaf.jpg'), loadImage('textures/leaf_a.jpg'), loadImage('textures/needles_a.jpg'), loadImage('data/imagery.jpg'), loadImage('data/ortho_a.jpg'), loadImage('data/ortho_b.jpg'), loadImage('data/ortho_c.jpg'), loadImage('data/ortho_d.jpg'), loadImage('data/ortho_e.jpg')]);
   const by = Object.fromEntries(names.map((n, i) => [n, imgs[i]]));
-  const [grassN, rockN, leaf, leafA, needlesA, imagery, orthoA, orthoB, orthoC] = imgs.slice(names.length);
+  const [grassN, rockN, leaf, leafA, needlesA, imagery, orthoA, orthoB, orthoC, orthoD, orthoE] = imgs.slice(names.length);
   const tex = (img, srgb = true) => {
     const t = new THREE.Texture(img);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
@@ -183,9 +183,17 @@ async function loadAssets(renderer) {
     t.needsUpdate = true;
     return t;
   };
-  T.orthoA = ortho(orthoA);
+  // atlanti 8192×4096 (due finestre affiancate) per restare entro i limiti di sampler della GPU
+  const atlas = (l, r) => {
+    const c = document.createElement('canvas');
+    c.width = 8192; c.height = 4096;
+    const g = c.getContext('2d');
+    g.drawImage(l, 0, 0); g.drawImage(r, 4096, 0);
+    return ortho(c);
+  };
+  T.orthoAD = atlas(orthoA, orthoD);
+  T.orthoCE = atlas(orthoC, orthoE);
   T.orthoB = ortho(orthoB);
-  T.orthoC = ortho(orthoC);
 
   // classi di copertura (R bosco, G urbano, B roccia, A acqua)
   T.classes = new THREE.DataTexture(DATA.cls, DATA.CN, DATA.CN, THREE.RGBAFormat);
@@ -652,12 +660,15 @@ export async function createWorld(scene, renderer) {
     shader.uniforms.tImg = { value: assets.imagery };
     shader.uniforms.tCls = { value: assets.classes };
     shader.uniforms.tRoad = { value: assets.roads };
-    shader.uniforms.tOA = { value: assets.orthoA };
+    shader.uniforms.tAD = { value: assets.orthoAD };
+    shader.uniforms.tCE = { value: assets.orthoCE };
     shader.uniforms.tOB = { value: assets.orthoB };
-    shader.uniforms.tOC = { value: assets.orthoC };
-    shader.uniforms.uOC = { value: new THREE.Vector4(-2000, -2000, 4000, 4000) };
+    // finestre (x0, z0, lato): A/C attorno a LIAP, B aviosuperficie, D/E comune di Lucoli
     shader.uniforms.uOA = { value: new THREE.Vector4(-4000, -4000, 8000, 8000) };
     shader.uniforms.uOB = { value: new THREE.Vector4(14000, 5200, 6000, 6000) };
+    shader.uniforms.uOC = { value: new THREE.Vector4(-2000, -2000, 4000, 4000) };
+    shader.uniforms.uOD = { value: new THREE.Vector4(-1000, 4000, 13000, 13000) };
+    shader.uniforms.uOE = { value: new THREE.Vector4(500, 7000, 4000, 4000) };
     shader.uniforms.uExt = { value: new THREE.Vector4(ext.x0, ext.z0, ext.x1 - ext.x0, ext.z1 - ext.z0) };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;')
@@ -665,10 +676,11 @@ export async function createWorld(scene, renderer) {
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         varying vec3 vWPos;
-        uniform sampler2D t_grass, t_forest, t_rock, t_asphalt, n_grass, n_rock, tImg, tCls, tRoad, tNoise, tOA, tOB, tOC;
+        uniform sampler2D t_grass, t_forest, t_rock, t_asphalt, n_grass, n_rock, tImg, tCls, tRoad, tNoise, tAD, tCE, tOB;
         uniform vec3 a_grass, a_forest, a_rock, a_asphalt;
-        uniform vec4 uExt, uOA, uOB, uOC;
+        uniform vec4 uExt, uOA, uOB, uOC, uOD, uOE;
         float gRock, gNear, gFar;
+        float owin(vec2 q, float f){ vec2 e = min(q, 1.0 - q); return smoothstep(0.0, f, min(e.x, e.y)); }
         #if TQ >= 1
         vec3 TX(sampler2D t, vec2 p, float s, vec3 avg){
           vec3 a = texture2D(t, p / s).rgb;
@@ -695,18 +707,22 @@ export async function createWorld(scene, renderer) {
           // ortofoto reale ad alta risoluzione dentro le finestre degli aeroporti, sfumata ai bordi
           float oMask = 0.0;
           {
-            vec2 qa = (p - uOA.xy) / uOA.zw, qb = (p - uOB.xy) / uOB.zw;
-            vec2 ea = min(qa, 1.0 - qa), eb = min(qb, 1.0 - qb);
-            float wa = smoothstep(0.0, 0.06, min(ea.x, ea.y)), wb = smoothstep(0.0, 0.07, min(eb.x, eb.y));
-            vec3 oc = vec3(0.0);
-            if (wa > 0.0) oc = texture2D(tOA, qa).rgb * wa;
-            if (wb > 0.0) oc += texture2D(tOB, qb).rgb * wb;
-            oMask = min(wa + wb, 1.0);
-            vec2 qc = (p - uOC.xy) / uOC.zw, ec = min(qc, 1.0 - qc);
-            float wc = smoothstep(0.0, 0.05, min(ec.x, ec.y));
+            // strati dal più grossolano al più fine, accumulati con peso (bordi sfumati)
+            vec3 P = vec3(0.0); float cov = 0.0;
+            vec2 q; float w;
+            q = (p - uOD.xy) / uOD.zw; w = owin(q, 0.04);
+            if (w > 0.0) { q = clamp(q, 0.001, 0.999); P = texture2D(tAD, vec2(0.5 + q.x * 0.5, q.y)).rgb * w; cov = w; }
+            q = (p - uOB.xy) / uOB.zw; w = owin(q, 0.07);
+            if (w > 0.0) { P = P * (1.0 - w) + texture2D(tOB, q).rgb * w; cov = cov * (1.0 - w) + w; }
+            q = (p - uOA.xy) / uOA.zw; w = owin(q, 0.06);
+            if (w > 0.0) { q = clamp(q, 0.001, 0.999); P = P * (1.0 - w) + texture2D(tAD, vec2(q.x * 0.5, q.y)).rgb * w; cov = cov * (1.0 - w) + w; }
+            q = (p - uOE.xy) / uOE.zw; w = owin(q, 0.05);
+            if (w > 0.0) { q = clamp(q, 0.001, 0.999); P = P * (1.0 - w) + texture2D(tCE, vec2(0.5 + q.x * 0.5, q.y)).rgb * w; cov = cov * (1.0 - w) + w; }
+            q = (p - uOC.xy) / uOC.zw; w = owin(q, 0.05);
+            if (w > 0.0) { q = clamp(q, 0.001, 0.999); P = P * (1.0 - w) + texture2D(tCE, vec2(q.x * 0.5, q.y)).rgb * w; cov = cov * (1.0 - w) + w; }
+            oMask = cov;
             if (oMask > 0.0) {
-              oc /= max(wa + wb, 1e-3);
-              if (wc > 0.0) { vec3 o2 = texture2D(tOC, qc).rgb; oc = mix(oc, o2, wc); oMask = max(oMask, wc); }
+              vec3 oc = P / cov;
               oc = pow(oc, vec3(0.92)) * 1.03; oc = mix(oc, oc * oc * 1.7, 0.15);
               base = mix(base, oc, oMask);
             }

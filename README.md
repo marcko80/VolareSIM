@@ -43,6 +43,9 @@
     <td width="50%"><img src="docs/screenshots/airport-b.png" alt="Aviosuperficie L'Aquila grass strip"><br><sub><b>Aviosuperficie L'Aquila</b> — the real grass airstrip (runway 11/29) at 1,870 ft</sub></td>
   </tr>
   <tr>
+    <td colspan="2"><img src="docs/screenshots/lucoli.png" alt="Lucoli valley with real orthophotos"><br><sub><b>Comune di Lucoli</b> — 1–3 m/px AGEA orthophotos: real roads, hairpins, villages and fields</sub></td>
+  </tr>
+  <tr>
     <td colspan="2"><img src="docs/screenshots/approach.png" alt="Final approach, Italian interface"><br><sub><b>Final approach</b> with flaps at 20° — shown with the Italian interface</sub></td>
   </tr>
 </table>
@@ -117,7 +120,7 @@ Measured on a hybrid laptop at 1920 × 1080 with `node tools/perf.mjs` (NVIDIA G
 | **Window openings & livery** (`src/livery.js`) | A 2048 × 1024 texture set is computed once from signed-distance functions in fuselage space: paint, anti-aliased window alpha, glass alpha, gaskets, panel lines and the registration. The same mask cuts the exterior skin and an inset interior shell, so the cabin is a real enclosed volume you can see into and out of. |
 | **Cockpit** (`src/cockpit.js`) | Extruded dash, panel texture, seven dial canvases redrawn only when their value changes, chrome bezels and glass covers, two yokes that mirror stick input, throttle knob, seats, door trim and a cabin light. |
 | **Sky & lighting** (`src/sky.js`) | Atmospheric gradient, HDR sun disc and a cloud layer in one fragment shader; the same shader is baked to a PMREM environment map for reflections. Sun shadows are snapped to shadow-map texels to avoid shimmering. |
-| **Real data** (`tools/fetch-data.mjs`, `src/data.js`) | A one-off script downloads AWS Terrain Tiles (elevation), EOX Sentinel-2 cloudless 2016 (imagery) and Overpass/OpenStreetMap features, reprojects them to a local metric grid centred on the LIAP runway and writes `public/data/` (a 2048² height grid, a 3072² sharpened image, 1536² land-cover classes and an OSM JSON). High-resolution inset photos come from `tools/fetch-ortho.mjs` (AGEA 2012 orthophotos at 1 m/px around LIAP, 2 m/px over 8 km and around the grass airfield), blended into the terrain shader over the satellite base. The game reads these files at start-up. |
+| **Real data** (`tools/fetch-data.mjs`, `src/data.js`) | A one-off script downloads AWS Terrain Tiles (elevation), EOX Sentinel-2 cloudless 2016 (imagery) and Overpass/OpenStreetMap features, reprojects them to a local metric grid centred on the LIAP runway and writes `public/data/` (a 2048² height grid, a 3072² sharpened image, 1536² land-cover classes and an OSM JSON). High-resolution inset photos come from `tools/fetch-ortho.mjs` (AGEA 2012 orthophotos: 1 m/px around LIAP and over the villages of Lucoli, 2–3 m/px over 8 km around LIAP, around the grass airfield and over the whole municipality of Lucoli), blended into the terrain shader over the satellite base. The game reads these files at start-up. |
 | **Terrain** (`src/world.js`) | 24 × 24 chunks of 1.6 km on a budgeted queue (no hitches while flying), three LODs with skirts. A fragment shader takes the colour from the satellite, adds luminance grain from CC0 photo textures, a tileable noise texture at 3 scales and normal maps up close, then layers roads, water, rock on steep slopes and snow above 2,300 m. Trees are instanced per chunk: 3D models near, impostor billboards farther out. |
 | **Post-processing** (`src/postfx.js`) | EffectComposer: HDR half-float target → bloom → ACES output → SMAA or MSAA + grading. |
 | **Audio / input / i18n** | WebAudio synthesis (`src/audio.js`), keyboard + Gamepad API (`src/controls.js`), dictionary-based IT/EN (`src/i18n.js`). |
