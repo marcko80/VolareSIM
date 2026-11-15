@@ -3,6 +3,10 @@ const path = require('path');
 
 // l'audio parte senza gesto dell'utente; il rendering non rallenta in background
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+// grafica: usa la GPU (anche se in blocklist), preferisce quella dedicata sui portatili ibridi
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('force_high_performance_gpu');
 
 function createWindow() {
   const win = new BrowserWindow({

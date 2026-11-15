@@ -2,12 +2,12 @@
 
 # ✈️ VolareSIM
 
-**Un semplice simulatore di volo civile realizzato con [Three.js](https://threejs.org/)** — pilota un monomotore tipo Cessna tra due aeroporti, nel browser o come app desktop per Windows.
+**Un simulatore di volo civile realizzato con [Three.js](https://threejs.org/) ed Electron** — pilota un Cessna 172 modellato proceduralmente, con un vero cockpit 3D, tra due aeroporti. Pensato per il desktop: renderer PBR dedicato, risoluzione adattiva e installer per Windows.
 
 [![Three.js](https://img.shields.io/badge/Three.js-r187-000000?logo=threedotjs&logoColor=white)](https://threejs.org/)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Electron](https://img.shields.io/badge/Electron-desktop-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
-![Piattaforme](https://img.shields.io/badge/piattaforme-Web%20%7C%20Windows-blue)
+![Piattaforma](https://img.shields.io/badge/piattaforma-Windows-blue)
 ![Lingue](https://img.shields.io/badge/lingue-EN%20%7C%20IT-green)
 
 [English](README.md) · **Italiano**
@@ -20,49 +20,47 @@
 
 | | |
 |---|---|
-| 🛩️ **Modello di volo** | Spinta, resistenza, portanza, stallo, flap, freni e sterzo del ruotino: pensato per ricordare un addestratore monomotore leggero |
-| 🌍 **Due aeroporti** | *Volare Intl* (livello del mare, pista da 1200 m) e *Monte Alto* (90 m di quota, pista da 900 m con prua 060°), a circa 9 km di distanza, con torri, hangar, luci e fari |
-| 🎥 **Quattro camere** | Inseguimento, cabina, **cockpit 3D** con strumenti funzionanti e torre di controllo. Trascina il mouse per guardarti attorno |
+| 🛩️ **Una vera cellula, non scatole** | Fusoliera loftata con finestrini aperti e guscio interno, ala rastremata NACA 2412 con diedro, flap, alettoni, equilibratori e timone cernierati, carenature delle ruote, elica svergolata, luci di navigazione e strobo, marche dipinte sulla pelle |
+| 🎛️ **Cockpit 3D** | Cruscotto con anemometro, orizzonte, altimetro, prua, variometro e giri motore funzionanti, pila radio e GPS, due volantini collegati, manetta e miscela, sedili, pannelli porta. Guardi attorno col mouse, zoom con la rotella |
+| 🌅 **Rendering fisicamente basato** | Pipeline HDR, tone mapping ACES, bloom, riflessi da un ambiente basato sul cielo, ombre del sole agganciate ai texel che cadono perfino dentro l'abitacolo |
+| ☁️ **Cielo e terreno procedurali** | Cielo in shader con nuvole in movimento e sole HDR; terreno di 26 × 26 km a chunk con LOD, campi coltivati con file di colture, roccia sulle pendenze, foreste e alberi istanziati; mare oltre la costa |
+| 🌍 **Due aeroporti** | *Volare Intl* (livello del mare, 1200 m) e *Monte Alto* (90 m, 900 m, prua 060°) a circa 9 km di distanza, con terminal, hangar ad arco, torre, serbatoi, PAPI, luci di pista, manica a vento, fari e aerei parcheggiati |
+| ⚡ **Prestazioni adattive** | Riconosce le GPU integrate e adatta la risoluzione di rendering (55–100 %) al volo, poi riduce il livello di qualità se serve; con <kbd>V</kbd> scegli a mano |
 | 🔊 **Suoni sintetizzati** | Motore a quattro cilindri legato ai giri, elica, vento, rotolamento, cicalino di stallo e tonfo del contatto: nessun file audio |
-| 🎮 **Tastiera, mouse, joystick, gamepad** | Funzionano subito grazie alla Gamepad API del browser |
-| 🌐 **Italiano e inglese** | Rilevati automaticamente; cambia quando vuoi con <kbd>L</kbd> o con il pulsante in alto a sinistra |
-| 🖥️ **Installer desktop** | Installer Windows e versione portable, generati con Electron |
+| 🎮 **Tastiera, mouse, joystick, gamepad** | Funzionano subito grazie alla Gamepad API |
+| 🌐 **Italiano e inglese** | Rilevati automaticamente; cambia quando vuoi con <kbd>L</kbd> |
 
 ## Screenshot
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/cockpit.png" alt="Cockpit 3D"><br><sub><b>Cockpit 3D</b> — anemometro, orizzonte artificiale, altimetro, giri motore, prua e variometro; il volantino segue i tuoi comandi</sub></td>
-    <td width="50%"><img src="docs/screenshots/takeoff-hud.png" alt="Pronti al decollo con HUD e aiuto"><br><sub><b>Pronti al decollo</b> — HUD, orizzonte artificiale e pannello dei comandi (<kbd>H</kbd>)</sub></td>
+    <td width="50%"><img src="docs/screenshots/orbit.png" alt="Il Cessna in pista"><br><sub><b>La cellula</b> — fusoliera loftata, finestrini aperti, livrea, ala NACA, carenature ed elica (camera orbita)</sub></td>
+    <td width="50%"><img src="docs/screenshots/cockpit.png" alt="Cockpit 3D"><br><sub><b>Cockpit 3D</b> — montanti dei finestrini veri, strumenti, pila radio, volantini collegati, manetta e miscela</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/airport-b.png" alt="Aeroporto Monte Alto"><br><sub><b>Monte Alto</b> — il secondo aeroporto a 295 ft, con pista, torre e faro</sub></td>
-    <td width="50%"><img src="docs/screenshots/approach.png" alt="Finale con interfaccia in italiano"><br><sub><b>Finale</b> con flap a 20° — qui con l'interfaccia in italiano</sub></td>
+    <td width="50%"><img src="docs/screenshots/takeoff-hud.png" alt="Pronti al decollo con HUD e aiuto"><br><sub><b>Pronti al decollo</b> — HUD, orizzonte artificiale e pannello dei comandi (<kbd>H</kbd>)</sub></td>
+    <td width="50%"><img src="docs/screenshots/airport-b.png" alt="Aeroporto Monte Alto"><br><sub><b>Monte Alto</b> — il secondo aeroporto a 295 ft, con hangar, terminal, torre, PAPI e faro</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/approach.png" alt="Finale con interfaccia in italiano"><br><sub><b>Finale</b> con flap a 20° — qui con l'interfaccia in italiano</sub></td>
   </tr>
 </table>
 
-## Avvio rapido
+## Installazione (Windows)
 
-### Nel browser
+Scarica **`VolareSIM-Setup-<versione>.exe`** (installer) oppure **`VolareSIM-Portable-<versione>.exe`** (senza installazione) dalla pagina [Releases](../../releases).
+Windows SmartScreen può avvisare che l'app non è firmata: scegli *Ulteriori informazioni → Esegui comunque*. Con <kbd>F11</kbd> vai a schermo intero.
+
+L'app usa la GPU tramite Chromium/ANGLE (Direct3D 11). Sui portatili con due GPU richiede quella ad alte prestazioni; puoi anche forzarla da *Impostazioni di Windows → Grafica*.
+
+### Dal codice sorgente
 
 ```bash
 git clone https://github.com/marcko80/VolareSIM.git
 cd VolareSIM
 npm install
-npm run dev          # apri http://localhost:5173
-```
-
-Funziona con qualsiasi browser moderno con WebGL 2 (Chrome, Edge, Firefox, Safari).
-
-### App per Windows
-
-Scarica **`VolareSIM-Setup-<versione>.exe`** (installer) oppure **`VolareSIM-Portable-<versione>.exe`** (senza installazione) dalla pagina [Releases](../../releases).
-Windows SmartScreen può avvisare che l'app non è firmata: scegli *Ulteriori informazioni → Esegui comunque*. Con <kbd>F11</kbd> vai a schermo intero.
-
-Per compilarla da te:
-
-```bash
-npm run app          # avvia l'app Electron dal codice sorgente
+npm run app          # compila e avvia l'app Electron
+npm run dev          # server Vite (http://localhost:5173) per lo sviluppo
 npm run dist         # crea installer e versione portable in release/
 ```
 
@@ -84,11 +82,12 @@ npm run dist         # crea installer e versione portable in release/
 | <kbd>0</kbd>–<kbd>9</kbd> | Manetta diretta (0 = minimo, 9 = massimo) |
 | <kbd>F</kbd> / <kbd>G</kbd> | Flap giù / su (0°, 10°, 20°, 30°) |
 | <kbd>B</kbd> / <kbd>Spazio</kbd> | Freni |
-| <kbd>C</kbd> | Cambia camera: inseguimento → cabina → cockpit → torre |
-| Trascina il mouse | Guarda attorno |
+| <kbd>C</kbd> | Cambia camera: inseguimento → cockpit → torre → orbita |
+| Trascina il mouse / rotella | Guarda attorno (orbita nella vista orbita) / zoom |
 | <kbd>K</kbd> | Passa all'altro aeroporto |
 | <kbd>P</kbd> / <kbd>R</kbd> | Pausa / riparti |
 | <kbd>M</kbd> | Audio on / off |
+| <kbd>V</kbd> | Qualità grafica: bassa / media / alta |
 | <kbd>I</kbd> | Inverti l'asse di beccheggio del joystick |
 | <kbd>L</kbd> | Lingua EN / IT |
 | <kbd>H</kbd> | Mostra / nascondi l'aiuto |
@@ -96,55 +95,72 @@ npm run dist         # crea installer e versione portable in release/
 **Gamepad** (mappatura standard): stick sinistro = beccheggio/rollio, stick destro = pedaliera, RT/LT = manetta, A = freni, RB/LB = flap, Y = camera, X = riparti, Start = pausa, Back = aeroporto.
 **Joystick** (es. Logitech Extreme 3D): X/Y = rollio/beccheggio, torsione = pedaliera, cursore = manetta, grilletto = freni, pulsanti 3/4 = flap giù/su, pulsante 2 = camera.
 
+## Qualità grafica
+
+| Livello | Pipeline | Pensato per |
+|---|---|---|
+| **Bassa** | rendering diretto, ombre 1024², distanze di alberi e LOD ridotte, shader del terreno semplificato | GPU deboli o integrate |
+| **Media** | target HDR, bloom, ACES, SMAA, ombre 2048² | predefinita sulle GPU integrate |
+| **Alta** | come Media con MSAA 4×, vignettatura e grading, ombre 4096², terreno al massimo dettaglio | GPU dedicate |
+
+Misurato su un portatile ibrido a 1920 × 1080 con `node tools/perf.mjs`: con la **NVIDIA GTX 1050** il simulatore tiene 60 fps fissi a ogni livello (Alta in cockpit ≈ 59 fps); con la **Intel UHD 630** (integrata) della stessa macchina arriva a circa 40 fps in Media con risoluzione adattiva, 42–50 fps in Bassa e 20–25 fps in Alta. La risoluzione varia da sola tra il 55 % e il 100 % per mantenere il frame rate; l'HUD resta nitido.
+
 ## Come funziona
 
 | Area | Dettagli |
 |---|---|
-| **Dinamica di volo** (`src/flight.js`) | Passo fisso a 120 Hz. 1100 kg, ala da 16,2 m², 135 kW con rendimento dell'elica 0,78 e spinta statica di 3,4 kN. Pendenza della portanza 5 per radiante con stallo a 17° di incidenza e calo morbido dopo lo stallo; i flap spostano l'angolo di portanza nulla e aumentano la resistenza. La stabilità in beccheggio cresce vicino allo stallo: si stalla perdendo velocità, non tirando la barra. La densità dell'aria diminuisce con la quota. |
-| **Gestione a terra** | Carrello triciclo con tre punti di contatto, attrito di rotolamento (0,02 in pista, 0,09 sull'erba), freni, sterzo del ruotino che dipende dalla velocità e limite di beccheggio per evitare il contatto della coda. |
-| **Numeri tipici** | Corsa di decollo ≈ 250 m, rotazione a 55 kt, salita ≈ 800 ft/min, stallo ≈ 45 kt a flap rientrati, velocità massima ≈ 140 kt. |
-| **Mondo** (`src/world.js`) | Terreno procedurale di 26 × 26 km (mesh 400 × 400) con colline, boschi, nuvole, nebbia, cielo calcolato in shader e ombre che seguono l'aereo. Il terreno è livellato attorno a ogni aeroporto. |
-| **Aereo** (`src/aircraft.js`) | Cessna procedurale con fusoliera tornita, alettoni, flap, equilibratore e timone animati, luci di navigazione, strobo ed elica rotante. |
-| **Cockpit** (`src/cockpit.js`) | Pannello strumenti disegnato su una texture canvas a frame alterni; volantino e manetta ripetono i tuoi comandi. |
-| **Audio** (`src/audio.js`) | Oscillatori e rumore filtrato WebAudio; frequenza di scoppio = giri / 60 × 2. |
-| **Input** (`src/controls.js`) | Tastiera con superfici di comando graduali; Gamepad API con zona morta e curve esponenziali. |
-| **i18n** (`src/i18n.js`) | Traduzioni IT/EN basate su dizionario, ricordate in `localStorage`. |
+| **Dinamica di volo** (`src/flight.js`) | Passo fisso a 120 Hz. 1100 kg, ala da 16,2 m², 135 kW con rendimento dell'elica 0,78 e spinta statica di 3,4 kN. Pendenza della portanza 5 per radiante, stallo a 17° di incidenza con calo morbido dopo lo stallo; i flap spostano l'angolo di portanza nulla e aumentano la resistenza. La stabilità in beccheggio cresce vicino allo stallo: si stalla perdendo velocità, non tirando la barra. Carrello triciclo con tre punti di contatto, attrito di rotolamento, freni, sterzo del ruotino. Numeri tipici: corsa di decollo ≈ 250 m, rotazione a 55 kt, salita ≈ 800 ft/min, stallo ≈ 45 kt a flap rientrati, velocità massima ≈ 140 kt. |
+| **Cellula** (`src/geometry.js`, `src/aircraft.js`) | Fusoliera = 170 anelli superellittici × 88 segmenti, loftati da keyframe con interpolazione cubica monotona. Ali, coda, deriva e pale dell'elica nascono da un unico costruttore di superfici portanti NACA a 4 cifre con rastremazione, diedro, svergolamento, estremità arrotondate e tratti di bordo d'uscita cernierati, con i perni sulla linea di cerniera. |
+| **Finestrini e livrea** (`src/livery.js`) | Un set di texture 2048 × 1024 è calcolato una volta da funzioni di distanza con segno nello spazio della fusoliera: vernice, alfa dei finestrini anti-alias, alfa del vetro, guarnizioni, linee dei pannelli e marche. La stessa maschera buca la pelle esterna e un guscio interno rientrante: la cabina è un volume chiuso in cui si vede dentro e fuori. |
+| **Cockpit** (`src/cockpit.js`) | Cruscotto estruso, texture del pannello, sette quadranti su canvas ridisegnati solo quando il valore cambia, ghiere cromate e vetrini, due volantini che ripetono i comandi, manetta, sedili, rivestimenti e una luce d'abitacolo. |
+| **Cielo e luce** (`src/sky.js`) | Gradiente atmosferico, disco solare HDR e strato di nubi in un solo fragment shader; lo stesso shader è cotto in una mappa ambiente PMREM per i riflessi. Le ombre del sole sono agganciate ai texel della shadow map per evitare lo sfarfallio. |
+| **Terreno** (`src/world.js`) | 16 × 16 chunk da 1,6 km, tre LOD (64/32/16 segmenti) con gonne, normali analitiche, un fragment shader che aggiunge dettaglio multiscala, campi coltivati con file di colture e roccia sulle pendenze. Gli alberi (conifere, latifoglie, arbusti) sono istanziati per chunk e raggruppati da un campo di densità dei boschi. Il terreno è livellato attorno agli aeroporti. |
+| **Post-processing** (`src/postfx.js`) | EffectComposer: target HDR half-float → bloom → uscita ACES → SMAA oppure MSAA + grading. |
+| **Audio / input / i18n** | Sintesi WebAudio (`src/audio.js`), tastiera + Gamepad API (`src/controls.js`), traduzioni IT/EN basate su dizionario (`src/i18n.js`). |
 
 ```
 VolareSIM/
-├── index.html             # struttura di HUD e aiuto
+├── index.html             # struttura di HUD, aiuto e schermata di caricamento
 ├── src/
-│   ├── main.js            # scena, camere, ciclo di gioco
+│   ├── main.js            # renderer, camere, ciclo di gioco, qualità adattiva
 │   ├── flight.js          # fisica di volo e a terra
-│   ├── world.js           # terreno, aeroporti, cielo
-│   ├── aircraft.js        # modello del Cessna
+│   ├── geometry.js        # loft, profili alari, superfici portanti
+│   ├── livery.js          # texture della fusoliera (vernice, finestrini, interno)
+│   ├── aircraft.js        # modello del Cessna e animazione
 │   ├── cockpit.js         # cockpit 3D
+│   ├── world.js           # terreno, alberi, aeroporti
+│   ├── sky.js             # shader del cielo, mappa ambiente
+│   ├── postfx.js          # post-processing
 │   ├── controls.js        # tastiera / gamepad
 │   ├── audio.js           # suoni sintetizzati
 │   ├── hud.js             # HUD e orizzonte artificiale
 │   └── i18n.js            # traduzioni
-├── electron/main.cjs      # guscio desktop
-├── tools/screenshots.mjs  # rigenera docs/screenshots
+├── electron/main.cjs      # guscio desktop (flag GPU, schermo intero)
+├── tools/                 # screenshot, profiler, benchmark FPS, test di fumo
+├── dev/viewer.html        # visualizzatore autonomo del modello dell'aereo
 └── .github/workflows/release.yml   # compila l'installer Windows sui tag
 ```
 
 ## Sviluppo
 
 ```bash
-npm run dev           # server di sviluppo con hot reload
+npm run dev           # server di sviluppo con hot reload (apri /dev/viewer.html per il visualizzatore dell'aereo)
 npm run build         # build di produzione in dist/
-npm run screenshots   # ricompila e cattura docs/screenshots tramite Electron
+npm run screenshots   # cattura docs/screenshots tramite Electron
+node tools/perf.mjs   # FPS a ogni livello di qualità
+node tools/profile.mjs 1920 1080 0 1   # costo di cielo / terreno / alberi / ombre
+node tools/smoke.mjs  # decolla, cambia camere/qualità/aeroporto/lingua e segnala errori JS
 npm run dist          # installer Windows + versione portable
 ```
 
-Pubblicando un tag come `v0.4.0`, GitHub Actions compila l'installer e lo allega alla release.
+Pubblicando un tag come `v0.5.0`, GitHub Actions compila l'installer e lo allega alla release.
 
 ## Roadmap
 
 - Vento e meteo, laghi e fiumi
 - Navigazione: waypoint, radioassistenze, un semplice pilota automatico
-- Altri aerei (bimotore, jet leggero) e una pipeline per modelli 3D (`.glb`)
-- Altri aeroporti e modalità notturna
+- Altri aerei (bimotore, jet leggero) e una pipeline per modelli `.glb`
+- Altri aeroporti, modalità notturna con finestre e luci di pista accese
 
 ## Crediti
 

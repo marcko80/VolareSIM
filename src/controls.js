@@ -1,6 +1,6 @@
 const GAME_KEYS = new Set([
   'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyF', 'KeyG', 'KeyB', 'KeyC', 'KeyP', 'KeyR', 'KeyH', 'KeyZ',
-  'KeyK', 'KeyM', 'KeyI', 'KeyL',
+  'KeyK', 'KeyM', 'KeyI', 'KeyL', 'KeyV',
   'Space', 'ShiftLeft', 'ShiftRight', 'PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
   'Digit0', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9',
 ]);
@@ -43,6 +43,7 @@ export class Controls {
         case 'KeyK': actions.airport(); break;
         case 'KeyM': actions.mute(); break;
         case 'KeyL': actions.lang(); break;
+        case 'KeyV': actions.quality(); break;
         case 'KeyI':
           this.invertPitch = !this.invertPitch;
           actions.notify('padAxis', this.invertPitch ? 'inverted' : 'normal');

@@ -52,14 +52,18 @@ const setup = (o) => `(() => {
   }
   f.throttle = o.throttle ?? f.throttle;
   f.flapTarget = o.flaps || 0; f.flapPos = o.flaps || 0;
+  if (o.orbit) s.setOrbit(o.orbit);
+  Object.assign(s.look, o.look || { yaw: 0, pitch: 0, drag: false });
+  s.setAdaptive(false); s.setResScale(1); s.setQuality(o.quality ?? 2);
   s.setCamera(o.camera);
   s.camReset();
   return true;
 })()`;
 
-const shots = [
+const shots = JSON.parse(process.env.SHOTS || 'null') || [
   { name: 'hero-chase', o: { pos: [25, 75, 520], heading: 358, bank: 0.28, pitch: 0.04, speed: 40, throttle: 0.7, camera: 0 } },
-  { name: 'cockpit', o: { pos: [-300, 320, -1500], heading: 340, bank: 0.18, pitch: 0.03, speed: 46, throttle: 0.75, camera: 2 } },
+  { name: 'cockpit', o: { pos: [-300, 320, -1500], heading: 340, bank: 0.18, pitch: 0.03, speed: 46, throttle: 0.75, camera: 1 } },
+  { name: 'orbit', o: { camera: 3, orbit: { az: 3.5, el: 0.14, d: 9 }, throttle: 0 }, ground: true },
   { name: 'takeoff-hud', o: { help: true, camera: 0 }, ground: true },
   { name: 'airport-b', o: { airport: 1, camera: 0, throttle: 0 }, ground: true },
   { name: 'approach', o: { pos: [30, 95, 1500], heading: 0, pitch: -0.04, speed: 36, throttle: 0.25, flaps: 2, camera: 0, lang: 'it' } },
@@ -68,7 +72,7 @@ const shots = [
 for (const s of shots) {
   if (s.ground) await run('window.__sim.setAirport(' + (s.o.airport ?? 0) + ')');
   await run(setup(s.o));
-  await sleep(s.ground ? 1200 : 700);
+  await sleep(s.ground ? 2500 : 1500);
   await run("document.getElementById('message').className=''");
   await sleep(300);
   const r = await cdp('Page.captureScreenshot', { format: 'png' });
